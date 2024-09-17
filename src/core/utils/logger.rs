@@ -1,6 +1,4 @@
 pub struct Logger;
-static mut HAD_ERROR: bool = false;
-
 impl Logger {
     pub fn error(line: usize, message: &str) {
         Self::report(line, "", message);

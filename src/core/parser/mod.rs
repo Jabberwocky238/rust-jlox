@@ -1,15 +1,17 @@
 use std::cell::Cell;
+use std::rc::Rc;
 
-use exprs::Binary;
 use exprs::Expr;
+use exprs::Binary;
 use exprs::Group;
 use exprs::Literal;
 use exprs::Unary;
 
-use crate::core::scanner::LiteralType;
-use crate::core::scanner::TokenType;
-
+use super::scanner::LiteralType;
+use super::scanner::TokenType;
 use super::scanner::Token;
+
+use super::utils::errors::ParseError;
 
 // expression     → literal
 //                | unary
@@ -22,19 +24,6 @@ use super::scanner::Token;
 // operator       → "==" | "!=" | "<" | "<=" | ">" | ">="
 //                | "+"  | "-"  | "*" | "/" ;
 
-pub mod exprs;
-pub mod exprvisiter;
-
-pub struct Parser {
-    current: Cell<usize>,
-    tokens: Vec<Token>,
-}
-
-#[derive(Debug)]
-pub struct ParseError {
-    message: String,
-}
-
 // expression     → equality ;
 // equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 // comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
@@ -44,19 +33,33 @@ pub struct ParseError {
 //                | primary ;
 // primary        → NUMBER | STRING | "true" | "false" | "nil"
 //                | "(" expression ")" ;
+
+pub mod exprs;
+pub mod astprinter;
+
+pub struct Parser {
+    current: Cell<usize>,
+    tokens: Vec<Token>,
+}
+
+fn error(token: Option<&Token>, message: String) -> ParseError {
+    let err = format!("Error {}: {}", token.unwrap().line, message);
+    return ParseError(err);
+}
+
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         Self { current: Cell::new(0), tokens }
     }
-    pub fn parse(&self) -> Result<Expr, ParseError> {
+    pub fn parse(&self) -> Result<Rc<Expr>, ParseError> {
         self.expression()
     }
 
-    fn expression(&self) -> Result<Expr, ParseError> {
+    fn expression(&self) -> Result<Rc<Expr>, ParseError> {
         return self.equality();
     }
 
-    fn equality(&self) -> Result<Expr, ParseError> {
+    fn equality(&self) -> Result<Rc<Expr>, ParseError> {
         let mut expr = self.comparison().unwrap();
 
         while self._match(&[TokenType::BANGEQUAL, TokenType::EQUALEQUAL]) {
@@ -110,9 +113,8 @@ impl Parser {
         return self.tokens.get(self.current.get() - 1);
     }
 
-    fn comparison(&self) -> Result<Expr, ParseError> {
+    fn comparison(&self) -> Result<Rc<Expr>, ParseError> {
         let mut expr = self.term().unwrap();
-
         while self._match(&[
             TokenType::GREATER,
             TokenType::GREATEREQUAL,
@@ -123,35 +125,30 @@ impl Parser {
             let right = self.term().unwrap();
             expr = Binary::build(expr, operator.clone(), right);
         }
-
         return Ok(expr);
     }
 
-    fn term(&self) -> Result<Expr, ParseError> {
+    fn term(&self) -> Result<Rc<Expr>, ParseError> {
         let mut expr = self.factor().unwrap();
-
         while self._match(&[TokenType::MINUS, TokenType::PLUS]) {
             let operator = self.previous().unwrap();
             let right = self.factor().unwrap();
             expr = Binary::build(expr, operator.clone(), right);
         }
-
         return Ok(expr);
     }
 
-    fn factor(&self) -> Result<Expr, ParseError> {
+    fn factor(&self) -> Result<Rc<Expr>, ParseError> {
         let mut expr = self.unary().unwrap();
-
         while self._match(&[TokenType::SLASH, TokenType::STAR]) {
             let operator = self.previous().unwrap();
             let right = self.unary().unwrap();
             expr = Binary::build(expr, operator.clone(), right);
         }
-
         return Ok(expr);
     }
 
-    fn unary(&self) -> Result<Expr, ParseError> {
+    fn unary(&self) -> Result<Rc<Expr>, ParseError> {
         if self._match(&[TokenType::BANG, TokenType::MINUS]) {
             let operator = self.previous().unwrap();
             let right = self.unary().unwrap();
@@ -160,7 +157,7 @@ impl Parser {
         return self.primary();
     }
 
-    fn primary(&self) -> Result<Expr, ParseError> {
+    fn primary(&self) -> Result<Rc<Expr>, ParseError> {
         if self._match(&[TokenType::FALSE]) {
             return Ok(Literal::build(LiteralType::Boolean(false)));
         }
@@ -183,7 +180,7 @@ impl Parser {
             );
             return Ok(Group::build(expr));
         }
-        Err(self.error(self.peek(), String::from("Expect expression.")))
+        Err(error(self.peek(), String::from("Expect expression.")))
     }
 
     fn consume(&self, _type: &TokenType, message: String) -> Result<(), ParseError> {
@@ -191,25 +188,17 @@ impl Parser {
             self.advance();
             return Ok(());
         }
-        Err(self.error(self.peek(), message))
-    }
-
-    fn error(&self, token: Option<&Token>, message: String) -> ParseError {
-        return ParseError { 
-            message: format!("Error {}: {}", token.unwrap().line, message)
-        };
+        Err(error(self.peek(), message))
     }
 
     fn synchronize(&mut self) {
         self.advance();
-
         while !self.is_at_end() {
             if let Some(current) = self.previous() {
                 if current._type == TokenType::SEMICOLON {
                     return;
                 }
             }
-
             if let Some(token) = self.peek() {
                 match token._type {
                     TokenType::CLASS
@@ -230,45 +219,31 @@ impl Parser {
 
 #[cfg(test)]
 mod tests_4_parser {
-    use crate::core::parser::exprvisiter::AstPrinter;
+    use crate::core::parser::astprinter::AstPrinter;
     use crate::core::parser::Parser;
     use crate::core::scanner::Scanner;
+
+    fn easy_test(source: String) -> String {
+        let mut scanner = Scanner::build(&source);
+        let tokens = scanner.scan_tokens().clone();
+        let parser = Parser::new(tokens);
+        let expression = parser.parse().unwrap();
+        let ast_parser = AstPrinter::new();
+        ast_parser.print(&expression)
+    }
 
     #[test]
     fn test1() {
         let source: String = "(1 + 2) * (4 - 3);".to_string();
-        let mut scanner = Scanner::build(&source);
-        let tokens = scanner.scan_tokens().clone();
-        let parser = Parser::new(tokens);
-        let expression = parser.parse().unwrap();
-        let ast_parser = AstPrinter::new();
-        let output = ast_parser.print(expression);
+        let output = easy_test(source);
 
         assert_eq!("(* (group (+ 1 2)) (group (- 4 3)))", output.as_str());
     }
 
-    // #[test]
-    // fn test2() {
-    //     let source: String = "1 >= 99 + 5.2 or 2.2 < 3.3;".to_string();
-    //     let mut scanner = Scanner::build(&source);
-    //     let tokens = scanner.scan_tokens().clone();
-    //     let parser = Parser::new(tokens);
-    //     let expression = parser.parse().unwrap();
-    //     let ast_parser = AstPrinter::new();
-    //     let output = ast_parser.print(expression);
-
-    //     assert_eq!("(or (>= 1 (+ 99 5.2)) (< 2.2 3.3))", output.as_str());
-    // }
-
     #[test]
-    fn test() {
+    fn test2() {
         let source: String = "1 >= 99 + 5.2 == 2.2 > 3.3;".to_string();
-        let mut scanner = Scanner::build(&source);
-        let tokens = scanner.scan_tokens().clone();
-        let parser = Parser::new(tokens);
-        let expression = parser.parse().unwrap();
-        let ast_parser = AstPrinter::new();
-        let output = ast_parser.print(expression);
+        let output = easy_test(source);
 
         assert_eq!("(== (>= 1 (+ 99 5.2)) (> 2.2 3.3))", output.as_str());
     }

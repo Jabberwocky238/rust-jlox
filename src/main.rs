@@ -4,7 +4,7 @@ use jlox_rust::Lox;
 
 fn main() {
     let cmd_args: Vec<String> = args().collect();
-
+    let mut lox = Lox::new();
     if cmd_args.len() > 2 {
         println!("Usage: jlox [script]");
         // 64 is the exit code for invalid arguments
@@ -13,8 +13,8 @@ fn main() {
         // }
         std::process::exit(64);
     } else if cmd_args.len() == 2 {
-        Lox::run_file(&cmd_args[1]);
+        lox.run_file(&cmd_args[1]);
     } else {
-        Lox::run_prompt();
+        lox.run_prompt();
     }
 }

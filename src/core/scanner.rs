@@ -1,11 +1,9 @@
 use once_cell::sync::Lazy;
 use std::cmp::Eq;
 use std::collections::HashMap;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::string::String;
 use std::sync::Mutex;
-
-use super::logger::Logger;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum TokenType {
@@ -31,6 +29,8 @@ pub enum TokenType {
     GREATEREQUAL, // >=
     LESS, // <
     LESSEQUAL, // <=
+    AND, // and
+    OR, // or
 
     // Literals.
     IDENTIFIER, 
@@ -38,7 +38,6 @@ pub enum TokenType {
     NUMBER,
 
     // Keywords.
-    AND,
     CLASS,
     ELSE,
     FALSE,
@@ -46,7 +45,6 @@ pub enum TokenType {
     FOR,
     IF,
     NIL,
-    OR,
     PRINT,
     RETURN,
     SUPER,
@@ -80,7 +78,7 @@ static KEYWORDS: Lazy<Mutex<HashMap<String, TokenType>>> = Lazy::new(|| {
     Mutex::new(m)
 });
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LiteralType {
     Number(f64),
     String(String),
@@ -89,18 +87,29 @@ pub enum LiteralType {
 }
 
 impl From<LiteralType> for String {
-    fn from(value: LiteralType) -> Self {
-        if let LiteralType::String(s) = value {
-            s
-        } else if let LiteralType::Number(n) = value {
-            n.to_string()
-        } else if let LiteralType::Boolean(b) = value {
-            b.to_string()
-        } else {
-            "nil".to_string()
+    fn from(value: LiteralType) -> String {
+        match value {
+            LiteralType::Number(n) => n.to_string(),
+            LiteralType::String(s) => s,
+            LiteralType::Boolean(b) => b.to_string(),
+            LiteralType::Nil => "nil".to_string(),
         }
     }
 }
+
+impl Display for LiteralType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LiteralType::Number(n) => write!(f, "{}", n),
+            LiteralType::String(s) => write!(f, "{}", s),
+            LiteralType::Boolean(b) => write!(f, "{}", b),
+            LiteralType::Nil => write!(f, "nil"),
+        }
+    }
+}
+
+
+
 
 #[derive(Debug, Clone)]
 pub struct Token {
@@ -151,7 +160,7 @@ impl Scanner {
         self.tokens.push(Token::build(
             TokenType::EOF,
             "",
-            LiteralType::String("".to_owned()),
+            LiteralType::Nil,
             self.line,
             self.current,
         ));
@@ -224,11 +233,7 @@ impl Scanner {
                     } else if c.is_alphabetic() {
                         self._identifier();
                     } else {
-                        Logger::report(
-                            self.line,
-                            &self.current.to_string(),
-                            &format!("Unexpected character: {}", c),
-                        );
+                        println!("{}", format!("line: {}, Unexpected character: {}", self.line, c));
                         return Some(true);
                     }
                 }
@@ -299,7 +304,7 @@ impl Scanner {
             }
         }
         if self.is_at_end() {
-            Logger::error(self.line, "Unterminated string.");
+            println!("line {}, {}", self.line, "Unterminated string.");
             return;
         }
         // The closing ".

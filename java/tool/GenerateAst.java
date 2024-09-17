@@ -12,15 +12,14 @@ import java.util.List;
 //             this.operator = operator;
 //             this.right = right;
 //         }
-
 //         final Expr left;
 //         final Token operator;
 //         final Expr right;
 //     }
-
 //     // Other expressions...
 // }
 
+// java java\tool\GenerateAst.java java\lox
 public class GenerateAst {
     public static void main(String[] args) throws IOException {
         if (args.length != 1) {

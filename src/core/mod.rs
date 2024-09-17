@@ -1,3 +1,5 @@
+pub mod utils;
+
 pub mod scanner;
-pub mod logger;
 pub mod parser;
+pub mod interpreter;
