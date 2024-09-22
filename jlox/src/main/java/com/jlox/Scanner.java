@@ -45,7 +45,6 @@ class Scanner {
             start = current;
             scanToken();
         }
-
         tokens.add(new Token(EOF, "", null, line));
         return tokens;
     }
@@ -122,6 +121,8 @@ class Scanner {
             default:
                 if (isDigit(c)) {
                     number();
+                } else if (isAlpha(c)) {
+                    identifier();
                 } else {
                     Lox.error(line, "Unexpected character.");
                 }
@@ -134,19 +135,20 @@ class Scanner {
             return false;
         if (source.charAt(current) != expected)
             return false;
-
         current++;
         return true;
     }
 
     private void identifier() {
-        // while (isAlphaNumeric(peek())) advance();
+        while (isAlphaNumeric(peek())) {
+            advance();
+        }
         String text = source.substring(start, current);
         TokenType type = keywords.get(text);
-        if (type == null)
+        if (type == null) {
             type = IDENTIFIER;
+        }
         addToken(type);
-        addToken(IDENTIFIER);
     }
 
     private boolean isAlpha(char c) {

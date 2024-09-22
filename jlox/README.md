@@ -11,3 +11,4 @@ mvn exec:java -Dexec.mainClass="com.jlox.Lox"
 
 # examples
 mvn exec:java -Dexec.mainClass="com.jlox.Lox" -Dexec.args="../scripts/math1.lox"
+mvn exec:java -Dexec.mainClass="com.jlox.Lox" -Dexec.args="../scripts/print.lox"

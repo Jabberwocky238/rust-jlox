@@ -16,28 +16,46 @@ class Parser {
   List<Stmt> parse() {
     List<Stmt> statements = new ArrayList<>();
     while (!isAtEnd()) {
-      statements.add(statement());
+      statements.add(declaration());
     }
-
     return statements;
   }
 
-  // statement -> expression ';'
-  private Stmt statement() {
-    if (match(PRINT))
-      return printStatement();
+  private Stmt declaration() {
+    try {
+      if (match(VAR)) return varDeclaration();
+      return statement();
+    } catch (ParseError error) {
+      synchronize();
+      return null;
+    }
+  }
 
+  private Stmt varDeclaration() {
+    Token name = consume(IDENTIFIER, "Expect variable name.");
+
+    Expr initializer = null;
+    if (match(EQUAL)) {
+      initializer = expression();
+    }
+
+    consume(SEMICOLON, "Expect ';' after variable declaration.");
+    return new Stmt.Var(name, initializer);
+  }
+
+  private Stmt statement() {
+    if (match(PRINT)) {
+      return printStatement();
+    }
     return expressionStatement();
   }
 
-  // statement -> expression ';'
   private Stmt printStatement() {
     Expr value = expression();
     consume(SEMICOLON, "Expect ';' after value.");
     return new Stmt.Print(value);
   }
 
-  // expression -> equality
   private Stmt expressionStatement() {
     Expr expr = expression();
     consume(SEMICOLON, "Expect ';' after expression.");
@@ -50,13 +68,11 @@ class Parser {
 
   private Expr equality() {
     Expr expr = comparison();
-
     while (match(BANG_EQUAL, EQUAL_EQUAL)) {
       Token operator = previous();
       Expr right = comparison();
       expr = new Expr.Binary(expr, operator, right);
     }
-
     return expr;
   }
 
@@ -67,7 +83,6 @@ class Parser {
         return true;
       }
     }
-
     return false;
   }
 
@@ -148,11 +163,9 @@ class Parser {
       return new Expr.Literal(true);
     if (match(NIL))
       return new Expr.Literal(null);
-
     if (match(NUMBER, STRING)) {
       return new Expr.Literal(previous().literal);
     }
-
     if (match(LEFT_PAREN)) {
       Expr expr = expression();
       consume(RIGHT_PAREN, "Expect ')' after expression.");

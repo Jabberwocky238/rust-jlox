@@ -18,3 +18,4 @@ cargo test tests_4_ast_printer::
 
 # run
 cargo run -- math1.lox
+

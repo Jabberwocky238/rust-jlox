@@ -1,14 +1,3 @@
-// expression     → literal
-//                | unary
-//                | binary
-//                | grouping ;
-// literal        → NUMBER | STRING | "true" | "false" | "nil" ;
-// grouping       → "(" expression ")" ;
-// unary          → ( "-" | "!" ) expression ;
-// binary         → expression operator expression ;
-// operator       → "==" | "!=" | "<" | "<=" | ">" | ">="
-//                | "+"  | "-"  | "*" | "/" ;
-
 use crate::core::scanner::LiteralType;
 use crate::core::scanner::Token;
 use std::rc::Rc;
@@ -32,11 +21,24 @@ pub struct Literal {
     pub value: LiteralType,
 }
 
+pub struct Expression {
+    pub expression: Rc<Expr>,
+}
+
+pub struct Print {
+    pub expression: Rc<Expr>,
+}
+
 pub enum Expr {
     Binary(Binary),
     Group(Group),
     Literal(Literal),
     Unary(Unary),
+}
+
+pub enum Stmt {
+    Expression(Expression),
+    Print(Print),
 }
 
 impl Binary {

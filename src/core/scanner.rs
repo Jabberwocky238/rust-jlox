@@ -59,6 +59,7 @@ pub enum TokenType {
 static KEYWORDS: Lazy<Mutex<HashMap<String, TokenType>>> = Lazy::new(|| {
     let m = HashMap::from([
         ("and".to_string(), TokenType::AND),
+        ("or".to_string(), TokenType::OR),
         ("class".to_string(), TokenType::CLASS),
         ("else".to_string(), TokenType::ELSE),
         ("false".to_string(), TokenType::FALSE),
@@ -66,7 +67,6 @@ static KEYWORDS: Lazy<Mutex<HashMap<String, TokenType>>> = Lazy::new(|| {
         ("fun".to_string(), TokenType::FUN),
         ("if".to_string(), TokenType::IF),
         ("nil".to_string(), TokenType::NIL),
-        ("or".to_string(), TokenType::OR),
         ("print".to_string(), TokenType::PRINT),
         ("return".to_string(), TokenType::RETURN),
         ("super".to_string(), TokenType::SUPER),
