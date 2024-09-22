@@ -14,11 +14,11 @@ pub enum TokenType {
     RIGHTBRACE, // }
     COMMA,      // ,
     DOT,        // .
+    PLUS,       // +
     MINUS,      // -
-    PLUS,
-    SEMICOLON,
-    SLASH,
-    STAR,
+    STAR,       // *
+    SLASH,      // /
+    SEMICOLON,  // ;
 
     // One or two character tokens.
     BANG, // !

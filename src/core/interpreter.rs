@@ -1,39 +1,18 @@
 use std::rc::Rc;
 
-use super::parser::exprs::Expr;
-use super::parser::exprs::Visitor;
-use super::parser::exprs::Binary;
-use super::parser::exprs::Group;
-use super::parser::exprs::Literal;
-use super::parser::exprs::Unary;
-use super::parser::exprs::Visitable;
+use super::exprs::Expr;
+use super::exprs::Expr::Visitable as _;
+use super::exprs::Stmt;
+use super::exprs::Stmt::Visitable as _;
 use super::scanner::TokenType;
 use super::scanner::LiteralType;
 use super::scanner::Token;
 use super::utils::errors::RuntimeError;
 
-impl Visitable<LiteralType> for Expr {
-    fn accept(&self, visitor: &dyn Visitor<LiteralType>) -> LiteralType {
-        match self {
-            Expr::Binary(value) => {
-                visitor.visit_binary_expr(value)
-            }
-            Expr::Group(value) => {
-                visitor.visit_grouping_expr(value)
-            }
-            Expr::Literal(value) => {
-                visitor.visit_literal_expr(value)
-            }
-            Expr::Unary(value) => {
-                visitor.visit_unary_expr(value)
-            },
-        }
-    }
-}
 pub struct Interpreter;
 
-impl Visitor<LiteralType> for Interpreter {
-    fn visit_binary_expr(&self, expr: &Binary) -> LiteralType {
+impl Expr::Visitor<LiteralType> for Interpreter {
+    fn visit_binary_expr(&self, expr: &Expr::Binary) -> LiteralType {
         let left = self.evaluate(&expr.left);
         let right = self.evaluate(&expr.right);
 
@@ -87,13 +66,13 @@ impl Visitor<LiteralType> for Interpreter {
         }
         // Unreachable.
     }
-    fn visit_grouping_expr(&self, expr: &Group) -> LiteralType {
+    fn visit_grouping_expr(&self, expr: &Expr::Group) -> LiteralType {
         return self.evaluate(&expr.expression);
     }
-    fn visit_literal_expr(&self, expr: &Literal) -> LiteralType {
+    fn visit_literal_expr(&self, expr: &Expr::Literal) -> LiteralType {
         return expr.value.clone();
     }
-    fn visit_unary_expr(&self, expr: &Unary) -> LiteralType {
+    fn visit_unary_expr(&self, expr: &Expr::Unary) -> LiteralType {
         let right = self.evaluate(&expr.right);
         match expr.operator._type {
             TokenType::BANG => {
@@ -110,20 +89,47 @@ impl Visitor<LiteralType> for Interpreter {
         } 
         // Unreachable
     }
+    fn visit_assign_expr(&self, expr: &Expr::Assign) -> LiteralType {
+        todo!()
+    }
+    fn visit_variable_expr(&self, expr: &Expr::Variable) -> LiteralType {
+        todo!()
+    }
 }
 
-impl Interpreter 
-    where Self: Visitor<LiteralType>
-{
+impl Stmt::Visitor<LiteralType> for Interpreter {
+    fn visit_print_stmt(&self, stmt: &Stmt::Print) -> LiteralType {
+        let value = self.evaluate(&stmt.expression);
+        println!("{value}");
+        return LiteralType::Nil;
+    }
+    fn visit_expression_stmt(&self, stmt: &Stmt::Expression) -> LiteralType {
+        self.evaluate(&stmt.expression);
+        return LiteralType::Nil;
+    }
+    fn visit_block_stmt(&self, stmt: &Stmt::Block) -> LiteralType {
+        todo!()
+    }
+    fn visit_var_stmt(&self, stmt: &Stmt::Var) -> LiteralType {
+        todo!()
+    }
+}
+
+impl Interpreter {
     pub fn new() -> Self {
         Interpreter {}
     }
-    pub fn interpret(&self, expr: &Rc<Expr>) -> Result<String, RuntimeError> {
-        let value = self.evaluate(expr);
-        Ok(stringify(value))
+    pub fn interpret(&self, stmts: &Vec<Rc<Stmt::Enum>>) -> Result<(), RuntimeError> {
+        for stmt in stmts.iter() {
+            self.execute(stmt);
+        }
+        Ok(())
     }
-    fn evaluate(&self, expr: &Rc<Expr>) -> LiteralType {
+    fn evaluate(&self, expr: &Rc<Expr::Enum>) -> LiteralType {
         return expr.accept(self);
+    }
+    fn execute(&self, stmt: &Rc<Stmt::Enum>) {
+        stmt.accept(self);
     }
 }
 
@@ -196,10 +202,9 @@ mod tests_4_interpreter {
         let mut scanner = Scanner::build(source);
         let tokens = scanner.scan_tokens().clone();
         let parser = Parser::new(tokens);
-        let expression = parser.parse().unwrap();
+        let expression = parser.parse();
         let interpreter = Interpreter::new();
-        let output = interpreter.interpret(&expression).unwrap();
-        output
+        interpreter.interpret(&expression);
     }
 
     #[test]

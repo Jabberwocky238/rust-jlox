@@ -1,11 +1,18 @@
 pub mod core;
 
-use core::{interpreter::Interpreter, parser::{astprinter::AstPrinter, Parser}, scanner::Scanner};
+use core::{interpreter::Interpreter, parser::{AstPrinter, Parser}, scanner::Scanner};
 
 pub struct Lox {
     interpreter: Interpreter,
     pub had_runtime_error: bool,
     pub had_error: bool,
+}
+
+#[derive(PartialEq, Eq)]
+pub enum LoxOption {
+    TOKEN,
+    AST,
+    INTERPRET,
 }
 
 impl Lox {
@@ -16,11 +23,11 @@ impl Lox {
             had_error: false,
         }
     }
-    pub fn run_file(&mut self, path: &String) {
+    pub fn run_file(&mut self, path: &String, option: LoxOption) {
         // 读文件
         let source = std::fs::read_to_string(path).unwrap();
         // 调用run
-        self.run(&source);
+        self.run(&source, option);
     }
     pub fn run_prompt(&mut self) {
         // InputStreamReader input = new InputStreamReader(System.in);
@@ -33,36 +40,39 @@ impl Lox {
         //     run(line);
         // }
     }
-    fn run(&mut self, source: &String) {
-        println!("Running: {}", source);
+    fn run(&mut self, source: &String, option: LoxOption) {
+        // println!("Running: {}", source);
         let mut scanner = Scanner::build(source);
         let tokens = scanner.scan_tokens().clone();
-        // For now, just print the tokens.
-        for token in tokens.iter() {
-            println!("{:?}", token);
+        if option == LoxOption::TOKEN {
+            // For now, just print the tokens.
+            for token in tokens.iter() {
+                println!("{:?}", token);
+            }
+            return;
         }
 
         let parser: Parser = Parser::new(tokens);
-        let expression = match parser.parse() {
-            Ok(expr) => expr,
-            Err(e) => {
-                self.had_error = true;
-                // Stop if there was a syntax error.
-                panic!("{}", e.0);
-            },
-        };
-        let ast_printer = AstPrinter::new();
-        println!("{}", ast_printer.print(&expression));
-        
-        match self.interpreter.interpret(&expression) {
-            Ok(output) => {
-                println!("{}", output);
-            },
-            Err(e) => {
-                self.had_error = true;
-                panic!("{}", e.0);
-            },
-        };
+        let stmts = parser.parse();
+
+        if option == LoxOption::AST {
+            let ast_printer = AstPrinter::new();
+            for stmt in stmts.iter() {
+                println!("[ast_printer]: {}", ast_printer.print_stmt(&stmt));
+            }
+        }
+
+        if option == LoxOption::INTERPRET {
+            match self.interpreter.interpret(&stmts) {
+                Ok(_) => {
+                    println!("[interpret]");
+                },
+                Err(e) => {
+                    self.had_error = true;
+                    panic!("{}", e.0);
+                },
+            };
+        }
     }
 }
 
