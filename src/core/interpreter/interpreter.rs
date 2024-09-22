@@ -1,13 +1,13 @@
 use std::rc::Rc;
 
-use super::exprs::Expr;
-use super::exprs::Expr::Visitable as _;
-use super::exprs::Stmt;
-use super::exprs::Stmt::Visitable as _;
-use super::scanner::TokenType;
-use super::scanner::LiteralType;
-use super::scanner::Token;
-use super::utils::errors::RuntimeError;
+use crate::core::exprs::Expr;
+use crate::core::exprs::Expr::Visitable as _;
+use crate::core::exprs::Stmt;
+use crate::core::exprs::Stmt::Visitable as _;
+use crate::core::scanner::TokenType;
+use crate::core::scanner::LiteralType;
+use crate::core::scanner::Token;
+use crate::core::utils::errors::RuntimeError;
 
 pub struct Interpreter;
 

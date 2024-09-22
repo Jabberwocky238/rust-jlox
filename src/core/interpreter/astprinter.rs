@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::core::exprs::{Expr::{self, Visitable as _}, Stmt::{self, Visitable as _}};
+use crate::core::{exprs::{Expr::{self, Visitable as _}, Stmt::{self, Visitable as _}}, scanner::LiteralType};
 
 pub struct AstPrinter;
 
@@ -15,15 +15,7 @@ impl Expr::Visitor<String> for AstPrinter {
         return self.parenthesize("group", &[&expr.expression]);
     }
     fn visit_literal_expr(&self, expr: &Expr::Literal) -> String {
-        match &expr.value {
-            crate::core::scanner::LiteralType::String(value) => {
-                ["\"", &value.clone(), "\""].join("")
-            },
-            crate::core::scanner::LiteralType::Boolean(value) => {
-                ["bool", &value.to_string()].join(" ")
-            },
-            _ => String::from(expr.value.clone()),
-        }
+        stringify(&expr.value)
     }
     fn visit_unary_expr(&self, expr: &Expr::Unary) -> String {
         return self.parenthesize(&expr.operator.lexeme, &[&expr.right]);
@@ -91,13 +83,22 @@ impl AstPrinter {
     }
 }
 
-
+#[allow(unreachable_patterns)]
+fn stringify(object: &LiteralType) -> String {
+    match object {
+        LiteralType::Number(value) => value.to_string(),
+        LiteralType::String(value) => ["\"", &value.clone(), "\""].join(""),
+        LiteralType::Boolean(value) => ["bool", &value.to_string()].join(" "),
+        LiteralType::Nil => "nil".to_owned(),
+        _ => object.to_string(),
+    }
+}
 
 #[cfg(test)]
 mod tests_4_ast_printer {
     use std::rc::Rc;
     use crate::core::exprs::Expr;
-    use crate::core::parser::AstPrinter;
+    use crate::core::interpreter::AstPrinter;
     use crate::core::scanner::{LiteralType, Token, TokenType};
 
     fn easy_number(num: f64) -> Rc<Expr::Enum> {

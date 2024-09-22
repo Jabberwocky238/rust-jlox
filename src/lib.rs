@@ -1,6 +1,9 @@
 pub mod core;
 
-use core::{interpreter::Interpreter, parser::{AstPrinter, Parser}, scanner::Scanner};
+use core::interpreter::Interpreter;
+use core::interpreter::AstPrinter;
+use core::parser::Parser;
+use core::scanner::Scanner;
 
 pub struct Lox {
     interpreter: Interpreter,
@@ -58,14 +61,14 @@ impl Lox {
         if option == LoxOption::AST {
             let ast_printer = AstPrinter::new();
             for stmt in stmts.iter() {
-                println!("[ast_printer]: {}", ast_printer.print_stmt(&stmt));
+                println!("[AstPrinter]: {}", ast_printer.print_stmt(&stmt));
             }
         }
 
         if option == LoxOption::INTERPRET {
             match self.interpreter.interpret(&stmts) {
                 Ok(_) => {
-                    println!("[interpret]");
+                    println!("[Interpreter] end");
                 },
                 Err(e) => {
                     self.had_error = true;
