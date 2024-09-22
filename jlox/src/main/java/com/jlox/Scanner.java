@@ -186,10 +186,35 @@ class Scanner {
     }
 
     private void string() {
+        StringBuilder builder = new StringBuilder();
+        boolean backslash = false;
         while (peek() != '"' && !isAtEnd()) {
-            if (peek() == '\n')
+            // Handle escape sequences.
+            if (backslash) {
+                switch (peek()) {
+                    case 'n':
+                        builder.append('\n');
+                        break;
+                    case 't':
+                        builder.append('\t');
+                        break;
+                    default:
+                        Lox.error(line, "escape unknown char: " + peek());
+                        return;
+                }
+                advance();
+                backslash = false;
+                continue;
+            }
+            else if (peek() == '\n') {
                 line++;
-            advance();
+            }
+            else if (peek() == '\\') {
+                backslash = true;
+                advance();
+                continue;
+            }
+            builder.append(advance());
         }
 
         if (isAtEnd()) {
@@ -200,8 +225,9 @@ class Scanner {
         // The closing ".
         advance();
 
+        String value = builder.toString();
         // Trim the surrounding quotes.
-        String value = source.substring(start + 1, current - 1);
+        // String value = source.substring(start + 1, current - 1);
         addToken(STRING, value);
     }
 

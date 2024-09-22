@@ -1,0 +1,9 @@
+var a = 1;
+var b = 2;
+print a + b;
+
+var x;
+print x; // "nil".
+
+var c = 1;
+print c = 2; // "2".

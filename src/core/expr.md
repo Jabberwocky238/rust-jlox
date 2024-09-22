@@ -1,7 +1,8 @@
 # rule 
 program        → declaration* EOF ;
+block          → "{" declaration* "}" ;
 declaration    → varDecl | statement ;
-statement      → exprStmt | printStmt ;
+statement      → exprStmt | printStmt | block ;
 **exprStmt**   → expression ";" ;
 **printStmt**  → "print" expression ";" ;
 
@@ -13,8 +14,10 @@ expression     → literal | unary | binary | grouping ;
 **binary**     → expression operator expression ;
 operator       → "==" | "!=" | "<" | "<=" | ">" | ">=" | "+"  | "-"  | "*" | "/" ;
 
+
 # parser
-expression     → equality ;
+expression     → assignment ;
+assignment     → IDENTIFIER "=" assignment | equality ;
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 term           → factor ( ( "-" | "+" ) factor )* ;
