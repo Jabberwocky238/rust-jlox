@@ -107,20 +107,3 @@ macro_rules! impl_visitable {
 }
 
 
-//     fn accept(&self, visitor: &dyn Visitor<String>) -> String {
-//         match self {
-//             Expr::Binary(value) => {
-//                 visitor.visit_binary_expr(value)
-//             }
-//             Expr::Group(value) => {
-//                 visitor.visit_grouping_expr(value)
-//             }
-//             Expr::Literal(value) => {
-//                 visitor.visit_literal_expr(value)
-//             }
-//             Expr::Unary(value) => {
-//                 visitor.visit_unary_expr(value)
-//             },
-//         }
-//     }
-// }

@@ -43,14 +43,6 @@ impl_visitable! {
 
 pub struct Interpreter;
 
-macro_rules! binary_check {
-    ($tokentype:ty, $returntype:expr) => {
-        $tokentype => {
-            let (left, right) = check_number_operands(&expr.operator, &left, &right).unwrap();
-            return $returntype;
-        }
-    };
-}
 
 impl Visitor<LiteralType> for Interpreter {
     fn visit_binary_expr(&self, expr: &Binary) -> LiteralType {
