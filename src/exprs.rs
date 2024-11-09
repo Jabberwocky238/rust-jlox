@@ -81,3 +81,46 @@ pub trait Visitable<R: ?Sized> {
     fn accept(&self, visitor: &dyn Visitor<R>) -> R;
 }
 
+#[macro_export]
+macro_rules! impl_visitable {
+    {   
+        impl <$output:ty> for $enum:ty, 
+        $(
+            ( $op:ident, $name:ident ),
+        )*
+    } => {
+        use paste::paste;
+        paste! {
+            impl Visitable<$output> for $enum {
+                fn accept(&self, visitor: &dyn Visitor<$output>) -> $output {
+                    match self {
+                        $(
+                            $enum::$op(value) => {
+                                visitor.[<visit_ $name _expr>](value)
+                            }
+                        )*
+                    }
+                }
+            }
+        }
+    };
+}
+
+
+//     fn accept(&self, visitor: &dyn Visitor<String>) -> String {
+//         match self {
+//             Expr::Binary(value) => {
+//                 visitor.visit_binary_expr(value)
+//             }
+//             Expr::Group(value) => {
+//                 visitor.visit_grouping_expr(value)
+//             }
+//             Expr::Literal(value) => {
+//                 visitor.visit_literal_expr(value)
+//             }
+//             Expr::Unary(value) => {
+//                 visitor.visit_unary_expr(value)
+//             },
+//         }
+//     }
+// }

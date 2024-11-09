@@ -2,9 +2,12 @@ mod errors;
 mod scanner;
 mod parser;
 mod interpreter;
+mod astprinter;
+mod exprs;
 
 use interpreter::Interpreter;
-use parser::{astprinter::AstPrinter, Parser};
+use parser::Parser;
+use astprinter::AstPrinter;
 use scanner::Scanner;
 
 pub struct Lox {

@@ -1,33 +1,25 @@
 use std::rc::Rc;
 
-use super::exprs::Expr;
-use super::exprs::Visitable;
-use super::exprs::Visitor;
-use super::exprs::Binary;
-use super::exprs::Group;
-use super::exprs::Literal;
-use super::exprs::Unary;
+use crate::exprs::Expr;
+use crate::exprs::Visitable;
+use crate::exprs::Visitor;
+use crate::exprs::Binary;
+use crate::exprs::Group;
+use crate::exprs::Literal;
+use crate::exprs::Unary;
+use crate::impl_visitable;
 
 pub struct AstPrinter;
 
-impl Visitable<String> for Expr {
-    fn accept(&self, visitor: &dyn Visitor<String>) -> String {
-        match self {
-            Expr::Binary(value) => {
-                visitor.visit_binary_expr(value)
-            }
-            Expr::Group(value) => {
-                visitor.visit_grouping_expr(value)
-            }
-            Expr::Literal(value) => {
-                visitor.visit_literal_expr(value)
-            }
-            Expr::Unary(value) => {
-                visitor.visit_unary_expr(value)
-            },
-        }
-    }
+impl_visitable! {
+    impl <String> for Expr, 
+    (Binary, binary),
+    (Group, grouping),
+    (Literal, literal),
+    (Unary, unary),
 }
+
+// impl Visitable<String> for Expr {
 
 impl Visitor<String> for AstPrinter {
     fn visit_binary_expr(&self, expr: &Binary) -> String {
@@ -75,9 +67,9 @@ where Self: Visitor<String>
 #[cfg(test)]
 mod tests_4_ast_printer {
     use std::rc::Rc;
-    use super::{Binary, Group, Literal, Unary};
-    use crate::parser::astprinter::AstPrinter;
-    use crate::parser::exprs::Expr;
+    use crate::exprs::*;
+    use crate::astprinter::AstPrinter;
+    use crate::exprs::Expr;
     use crate::scanner::{LiteralType, Token, TokenType};
 
     fn easy_number(num: f64) -> Rc<Expr> {

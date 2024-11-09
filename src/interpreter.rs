@@ -1,36 +1,56 @@
 use std::rc::Rc;
 
-use super::parser::exprs::Expr;
-use super::parser::exprs::Visitor;
-use super::parser::exprs::Binary;
-use super::parser::exprs::Group;
-use super::parser::exprs::Literal;
-use super::parser::exprs::Unary;
-use super::parser::exprs::Visitable;
+use super::exprs::Expr;
+use super::exprs::Visitor;
+use super::exprs::Binary;
+use super::exprs::Group;
+use super::exprs::Literal;
+use super::exprs::Unary;
+use super::exprs::Visitable;
 use super::scanner::TokenType;
 use super::scanner::LiteralType;
 use super::scanner::Token;
 use super::errors::RuntimeError;
 
-impl Visitable<LiteralType> for Expr {
-    fn accept(&self, visitor: &dyn Visitor<LiteralType>) -> LiteralType {
-        match self {
-            Expr::Binary(value) => {
-                visitor.visit_binary_expr(value)
-            }
-            Expr::Group(value) => {
-                visitor.visit_grouping_expr(value)
-            }
-            Expr::Literal(value) => {
-                visitor.visit_literal_expr(value)
-            }
-            Expr::Unary(value) => {
-                visitor.visit_unary_expr(value)
-            },
-        }
-    }
+// impl Visitable<LiteralType> for Expr {
+//     fn accept(&self, visitor: &dyn Visitor<LiteralType>) -> LiteralType {
+//         match self {
+//             Expr::Binary(value) => {
+//                 visitor.visit_binary_expr(value)
+//             }
+//             Expr::Group(value) => {
+//                 visitor.visit_grouping_expr(value)
+//             }
+//             Expr::Literal(value) => {
+//                 visitor.visit_literal_expr(value)
+//             }
+//             Expr::Unary(value) => {
+//                 visitor.visit_unary_expr(value)
+//             },
+//         }
+//     }
+// }
+
+use crate::impl_visitable;
+
+impl_visitable! {
+    impl <LiteralType> for Expr, 
+    (Binary, binary),
+    (Group, grouping),
+    (Literal, literal),
+    (Unary, unary),
 }
+
 pub struct Interpreter;
+
+macro_rules! binary_check {
+    ($tokentype:ty, $returntype:expr) => {
+        $tokentype => {
+            let (left, right) = check_number_operands(&expr.operator, &left, &right).unwrap();
+            return $returntype;
+        }
+    };
+}
 
 impl Visitor<LiteralType> for Interpreter {
     fn visit_binary_expr(&self, expr: &Binary) -> LiteralType {
@@ -189,7 +209,7 @@ fn stringify(object: LiteralType) -> String {
 #[cfg(test)]
 mod tests_4_interpreter {
     use crate::interpreter::Interpreter;
-    use crate::parser::Parser;
+    use crate::Parser;
     use crate::scanner::Scanner;
 
     fn easy_test(source: &String) -> String {

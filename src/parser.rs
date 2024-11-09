@@ -1,11 +1,11 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
-use exprs::Expr;
-use exprs::Binary;
-use exprs::Group;
-use exprs::Literal;
-use exprs::Unary;
+use super::exprs::Expr;
+use super::exprs::Binary;
+use super::exprs::Group;
+use super::exprs::Literal;
+use super::exprs::Unary;
 
 use super::scanner::LiteralType;
 use super::scanner::TokenType;
@@ -33,9 +33,6 @@ use super::errors::ParseError;
 //                | primary ;
 // primary        → NUMBER | STRING | "true" | "false" | "nil"
 //                | "(" expression ")" ;
-
-pub mod exprs;
-pub mod astprinter;
 
 pub struct Parser {
     current: Cell<usize>,
@@ -219,7 +216,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests_4_parser {
-    use crate::parser::astprinter::AstPrinter;
+    use crate::astprinter::AstPrinter;
     use crate::parser::Parser;
     use crate::scanner::Scanner;
 
