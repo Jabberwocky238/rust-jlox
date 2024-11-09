@@ -39,37 +39,56 @@ pub enum Expr {
     Unary(Unary),
 }
 
-impl Binary {
-    pub fn build(left: Rc<Expr>, operator: Token, right: Rc<Expr>) -> Rc<Expr> {
-        let this = Self { left, operator, right };
-        let warp = Expr::Binary(this);
-        Rc::new(warp)
-    }
+use paste::paste;
+
+macro_rules! impl_expr_build {
+    ($token:ty, [ $($param:ident: $t:ty), * ] ) => {
+        paste! {
+            impl $token {
+                pub fn build($( $param: $t, )*) -> Rc<Expr> {
+                    let this = Self { $( $param , )* };
+                    let warp = Expr::[< $token >](this);
+                    Rc::new(warp)
+                }
+            }
+        }
+    };
 }
 
-impl Group {
-    pub fn build(expression: Rc<Expr>) -> Rc<Expr> {
-        let this = Self { expression };
-        let warp = Expr::Group(this);
-        Rc::new(warp)
-    }
-}
+impl_expr_build!( Binary, [ left: Rc<Expr>, operator: Token, right: Rc<Expr> ] );
+impl_expr_build!( Group, [ expression: Rc<Expr> ] );
+impl_expr_build!( Unary, [ operator: Token, right: Rc<Expr> ] );
+impl_expr_build!( Literal, [ value: LiteralType ] );
 
-impl Unary {
-    pub fn build(operator: Token, right: Rc<Expr>) -> Rc<Expr> {
-        let this = Self { operator, right };
-        let warp = Expr::Unary(this);
-        Rc::new(warp)
-    }
-}
+// impl Binary {
+//     pub fn build(left: Rc<Expr>, operator: Token, right: Rc<Expr>) -> Rc<Expr> {
+//         let this = Self { left, operator, right };
+//         let warp = Expr::Binary(this);
+//         Rc::new(warp)
+//     }
+// }
+// impl Group {
+//     pub fn build(expression: Rc<Expr>) -> Rc<Expr> {
+//         let this = Self { expression };
+//         let warp = Expr::Group(this);
+//         Rc::new(warp)
+//     }
+// }
+// impl Unary {
+//     pub fn build(operator: Token, right: Rc<Expr>) -> Rc<Expr> {
+//         let this = Self { operator, right };
+//         let warp = Expr::Unary(this);
+//         Rc::new(warp)
+//     }
+// }
+// impl Literal {
+//     pub fn build(value: LiteralType) -> Rc<Expr> {
+//         let this = Self { value };
+//         let warp = Expr::Literal(this);
+//         Rc::new(warp)
+//     }
+// }
 
-impl Literal {
-    pub fn build(value: LiteralType) -> Rc<Expr> {
-        let this = Self { value };
-        let warp = Expr::Literal(this);
-        Rc::new(warp)
-    }
-}
 
 pub trait Visitor<R> {
     fn visit_binary_expr(&self, expr: &Binary) -> R;
@@ -83,8 +102,8 @@ pub trait Visitable<R: ?Sized> {
 
 #[macro_export]
 macro_rules! impl_visitable {
-    {   
-        impl <$output:ty> for $enum:ty, 
+    {
+        impl <$output:ty> for $enum:ty,
         $(
             ( $op:ident, $name:ident ),
         )*
@@ -105,5 +124,3 @@ macro_rules! impl_visitable {
         }
     };
 }
-
-
