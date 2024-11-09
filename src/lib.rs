@@ -1,6 +1,11 @@
-pub mod core;
+mod errors;
+mod scanner;
+mod parser;
+mod interpreter;
 
-use core::{interpreter::Interpreter, parser::{astprinter::AstPrinter, Parser}, scanner::Scanner};
+use interpreter::Interpreter;
+use parser::{astprinter::AstPrinter, Parser};
+use scanner::Scanner;
 
 pub struct Lox {
     interpreter: Interpreter,

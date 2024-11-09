@@ -9,8 +9,8 @@
 // operator       → "==" | "!=" | "<" | "<=" | ">" | ">="
 //                | "+"  | "-"  | "*" | "/" ;
 
-use crate::core::scanner::LiteralType;
-use crate::core::scanner::Token;
+use crate::scanner::LiteralType;
+use crate::scanner::Token;
 use std::rc::Rc;
 // 二元表达式
 pub struct Binary {

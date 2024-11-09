@@ -76,9 +76,9 @@ where Self: Visitor<String>
 mod tests_4_ast_printer {
     use std::rc::Rc;
     use super::{Binary, Group, Literal, Unary};
-    use crate::core::parser::astprinter::AstPrinter;
-    use crate::core::parser::exprs::Expr;
-    use crate::core::scanner::{LiteralType, Token, TokenType};
+    use crate::parser::astprinter::AstPrinter;
+    use crate::parser::exprs::Expr;
+    use crate::scanner::{LiteralType, Token, TokenType};
 
     fn easy_number(num: f64) -> Rc<Expr> {
         Literal::build(LiteralType::Number(num))

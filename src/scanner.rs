@@ -350,8 +350,8 @@ impl Scanner {
 
 #[cfg(test)]
 mod tests_4_scanner {
-    use crate::core::scanner::Scanner;
-    use crate::core::scanner::TokenType;
+    use crate::scanner::Scanner;
+    use crate::scanner::TokenType;
 
     #[test]
     fn test1() {

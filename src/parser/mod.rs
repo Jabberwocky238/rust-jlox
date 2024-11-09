@@ -11,7 +11,7 @@ use super::scanner::LiteralType;
 use super::scanner::TokenType;
 use super::scanner::Token;
 
-use super::utils::errors::ParseError;
+use super::errors::ParseError;
 
 // expression     → literal
 //                | unary
@@ -219,9 +219,9 @@ impl Parser {
 
 #[cfg(test)]
 mod tests_4_parser {
-    use crate::core::parser::astprinter::AstPrinter;
-    use crate::core::parser::Parser;
-    use crate::core::scanner::Scanner;
+    use crate::parser::astprinter::AstPrinter;
+    use crate::parser::Parser;
+    use crate::scanner::Scanner;
 
     fn easy_test(source: String) -> String {
         let mut scanner = Scanner::build(&source);

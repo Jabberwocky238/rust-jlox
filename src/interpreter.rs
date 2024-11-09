@@ -10,7 +10,7 @@ use super::parser::exprs::Visitable;
 use super::scanner::TokenType;
 use super::scanner::LiteralType;
 use super::scanner::Token;
-use super::utils::errors::RuntimeError;
+use super::errors::RuntimeError;
 
 impl Visitable<LiteralType> for Expr {
     fn accept(&self, visitor: &dyn Visitor<LiteralType>) -> LiteralType {
@@ -188,9 +188,9 @@ fn stringify(object: LiteralType) -> String {
 
 #[cfg(test)]
 mod tests_4_interpreter {
-    use crate::core::interpreter::Interpreter;
-    use crate::core::parser::Parser;
-    use crate::core::scanner::Scanner;
+    use crate::interpreter::Interpreter;
+    use crate::parser::Parser;
+    use crate::scanner::Scanner;
 
     fn easy_test(source: &String) -> String {
         let mut scanner = Scanner::build(source);
