@@ -38,20 +38,29 @@ impl_build!( Expr, Binary, [ left: Rc<Expr>, operator: Token, right: Rc<Expr> ] 
 impl_build!( Expr, Group, [ expression: Rc<Expr> ] );
 impl_build!( Expr, Unary, [ operator: Token, right: Rc<Expr> ] );
 impl_build!( Expr, Literal, [ value: LiteralType ] );
+impl_build!( Expr, Variable, [ name: Token ] );
+impl_build!( Expr, Assign, [ name: Token, value: Rc<Expr> ] );
 
 impl_build!( Stmt, Expression, [ expression: Rc<Expr> ] );
 impl_build!( Stmt, Print, [ expression: Rc<Expr> ] );
+impl_build!( Stmt, Var, [ name: Token, initializer: Option<Rc<Expr>> ] );
+impl_build!( Stmt, Block, [ statements: Vec<Rc<Stmt>> ] );
+
 
 pub enum Expr {
     Binary(Binary),
     Group(Group),
     Literal(Literal),
     Unary(Unary),
+    Variable(Variable),
+    Assign(Assign),
 }
 
 pub enum Stmt {
     Expression(Expression),
     Print(Print),
+    Var(Var),
+    Block(Block),
 }
 
 pub trait ExprVisitor<R> {
@@ -59,11 +68,15 @@ pub trait ExprVisitor<R> {
     fn visit_grouping(&self, expr: &Group) -> R;
     fn visit_literal(&self, expr: &Literal) -> R;
     fn visit_unary(&self, expr: &Unary) -> R;
+    fn visit_variable(&self, expr: &Variable) -> R;
+    fn visit_assign(&self, stmt: &Assign) -> R;
 }
 
 pub trait StmtVisitor<R> {
     fn visit_expression(&self, stmt: &Expression) -> R;
     fn visit_print(&self, stmt: &Print) -> R;
+    fn visit_var(&self, stmt: &Var) -> R;
+    fn visit_block(&self, stmt: &Block) -> R;
 }
 
 pub trait ExprVisitable<R: ?Sized> {

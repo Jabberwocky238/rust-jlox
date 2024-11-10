@@ -30,19 +30,37 @@ impl Parser {
     pub fn parse(&self) -> ParseResult<Vec<Rc<Stmt>>> {
         let mut stmts = vec![];
         while !self.is_at_end() {
-            let stmt = self.statement().unwrap();
+            let stmt = self.declaration()?;
             stmts.push(stmt);
         }
         return Ok(stmts);
+    }
+
+    fn declaration(&self) -> ParseResult<Rc<Stmt>> {
+        if self._match(&[TokenType::VAR]) {
+            return self.var_declaration();
+        }
+        self.statement()
+    }
+
+    fn var_declaration(&self) -> ParseResult<Rc<Stmt>> {
+        let name = self.consume(&TokenType::IDENTIFIER, "Expect variable name.")?;
+        let initializer = if self._match(&[TokenType::EQUAL]) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+        self.consume(&TokenType::SEMICOLON, "Expect ';' after variable declaration.")?;
+        return Ok(Var::build(name.clone(), initializer));
     }
 
     fn statement(&self) -> ParseResult<Rc<Stmt>> {
         if self._match(&[TokenType::PRINT]) {
             return self.print_statement();
         }
-        // if self._match(&[TokenType::LEFTBRACE]) {
-        //     return self.block();
-        // }
+        if self._match(&[TokenType::LEFTBRACE]) {
+            return self.block();
+        }
         return self.expression_statement();
     }
 
@@ -52,6 +70,15 @@ impl Parser {
         return Ok(Print::build(value));
     }
 
+    fn block(&self) -> ParseResult<Rc<Stmt>> {
+        let mut statements = vec![];
+        while !self.check(&TokenType::RIGHTBRACE) && !self.is_at_end() {
+            statements.push(self.declaration()?);
+        }
+        self.consume(&TokenType::RIGHTBRACE, "Expect '}' after block.")?;
+        return Ok(Block::build(statements));
+    }
+
     fn expression_statement(&self) -> ParseResult<Rc<Stmt>> {
         let value = self.expression()?;
         self.consume(&TokenType::SEMICOLON, "Expect ';' after value.")?;
@@ -59,8 +86,23 @@ impl Parser {
     }
 
     fn expression(&self) -> Result<Rc<Expr>, ParseError> {
-        return self.equality();
+        return self.assignment();
     }
+
+    fn assignment(&self) -> Result<Rc<Expr>, ParseError> {
+        let expr = self.equality()?;
+        if self._match(&[TokenType::EQUAL]) {
+            let equals = self.previous().unwrap();
+            let value = self.assignment()?;
+            if let Expr::Variable(x) = expr.as_ref() {
+                let name = x.name.clone();
+                return Ok(Assign::build(name, value));
+            }
+            return Err(error(Some(equals), "Invalid assignment target."));
+        }
+        return Ok(expr);
+    }
+
 
     fn equality(&self) -> Result<Rc<Expr>, ParseError> {
         let mut expr = self.comparison().unwrap();
@@ -175,6 +217,11 @@ impl Parser {
                 return Ok(Literal::build(token.literal.clone()));
             }
         }
+        if self._match(&[TokenType::IDENTIFIER]) {
+            if let Some(token) = self.previous() {
+                return Ok(Variable::build(token.clone()));
+            }
+        }
         if self._match(&[TokenType::LEFTPAREN]) {
             let expr = self.expression().unwrap();
             let _ = self.consume(
@@ -186,10 +233,11 @@ impl Parser {
         Err(error(self.peek(), "Expect expression."))
     }
 
-    fn consume(&self, _type: &TokenType, message: &str) -> Result<(), ParseError> {
+    fn consume(&self, _type: &TokenType, message: &str) -> Result<&Token, ParseError> {
         if self.check(_type) {
-            self.advance();
-            return Ok(());
+            if let Some(token) = self.advance() {
+                return Ok(token);
+            }
         }
         Err(error(self.peek(), message))
     }

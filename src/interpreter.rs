@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::rc::Rc;
 
 use super::gen::*;
@@ -26,6 +27,7 @@ use super::errors::RuntimeError;
 //     }
 // }
 
+use crate::environment::Environment;
 use crate::impl_expr_visitable;
 use crate::impl_stmt_visitable;
 
@@ -35,15 +37,48 @@ impl_expr_visitable! {
     (Group, grouping),
     (Literal, literal),
     (Unary, unary),
+    (Variable, variable),
+    (Assign, assign),
 }
 
 impl_stmt_visitable! {
     <Result<(), RuntimeError>>, 
     (Expression, expression),
     (Print, print),
+    (Var, var),
+    (Block, block),
 }
 
-pub struct Interpreter;
+pub struct Interpreter{
+    pub environment: Cell<Environment>,
+}
+
+impl Interpreter 
+    where Self: ExprVisitor<LiteralType>
+{
+    pub fn new() -> Self {
+        Interpreter {
+            environment: Cell::new(Environment::new()),
+        }
+    }
+    // commented at chapter 8 Executing statements
+    // pub fn interpret(&self, expr: &Rc<Expr>) -> Result<String, RuntimeError> {
+    //     let value = self.evaluate(expr);
+    //     Ok(stringify(value))
+    // }
+    pub fn interpret(&self, expr: &Vec<Rc<Stmt>>) -> Result<(), RuntimeError> {
+        for stmt in expr.iter() {
+            self.execute(stmt)?;
+        }
+        Ok(())
+    }
+    fn execute(&self, stmt: &Rc<Stmt>) -> Result<(), RuntimeError> {
+        stmt.accept(self)
+    }
+    fn evaluate(&self, expr: &Rc<Expr>) -> LiteralType {
+        return expr.accept(self);
+    }
+}
 
 impl ExprVisitor<LiteralType> for Interpreter {
     fn visit_binary(&self, expr: &Binary) -> LiteralType {
@@ -123,6 +158,16 @@ impl ExprVisitor<LiteralType> for Interpreter {
         } 
         // Unreachable
     }
+    
+    fn visit_variable(&self, expr: &Variable) -> LiteralType {
+        return self.environment..get(&expr.name.lexeme).unwrap().clone();
+    }
+    
+    fn visit_assign(&self, stmt: &Assign) -> LiteralType {
+        let value = self.evaluate(&stmt.value);
+        self.environment.assign(&stmt.name.lexeme, value.clone());
+        return value;
+    }
 }
 
 impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
@@ -135,34 +180,28 @@ impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
         println!("{}", stringify(value));
         Ok(())
     }
-    
-}
-
-impl Interpreter 
-    where Self: ExprVisitor<LiteralType>
-{
-    pub fn new() -> Self {
-        Interpreter {}
+    fn visit_var(&self, stmt: &Var) -> Result<(), RuntimeError> {
+        let value = if let Some(ref initializer) = stmt.initializer {
+            self.evaluate(initializer)
+        } else {
+            LiteralType::Nil
+        };
+        self.environment.define(&stmt.name.lexeme, value);
+        Ok(())
     }
-    // commented at chapter 8 Executing statements
-    // pub fn interpret(&self, expr: &Rc<Expr>) -> Result<String, RuntimeError> {
-    //     let value = self.evaluate(expr);
-    //     Ok(stringify(value))
-    // }
-    pub fn interpret(&self, expr: &Vec<Rc<Stmt>>) -> Result<(), RuntimeError> {
-        for stmt in expr.iter() {
-            self.execute(stmt)?;
+    
+    fn visit_block(&self, stmt: &Block) -> Result<(), RuntimeError> {
+        let environment = Environment::build(Box::new(self.environment.clone()));
+        let interpreter = Interpreter { environment };
+        for statement in stmt.statements.iter() {
+            interpreter.execute(statement)?;
         }
         Ok(())
     }
-    fn execute(&self, stmt: &Rc<Stmt>) -> Result<(), RuntimeError> {
-        stmt.accept(self)
-    }
-    fn evaluate(&self, expr: &Rc<Expr>) -> LiteralType {
-        return expr.accept(self);
-    }
 }
 
+// ----------------------------------------------------------------
+// ----------------------------------------------------------------
 
 fn error(token: &Token, message: &String) -> RuntimeError {
     return RuntimeError(format!("Error {}: {}", token.line, message));

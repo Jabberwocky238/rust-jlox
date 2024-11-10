@@ -4,6 +4,7 @@ mod parser;
 mod interpreter;
 // mod astprinter;
 mod gen;
+mod environment;
 
 use interpreter::Interpreter;
 use parser::Parser;
