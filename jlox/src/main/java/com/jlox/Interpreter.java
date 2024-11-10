@@ -2,10 +2,10 @@ package com.jlox;
 
 import java.util.List;
 
-import com.jlox.Lox;
 import com.utils.Expr;
-import com.utils.RuntimeError;
 import com.utils.Stmt;
+import com.utils.RuntimeError;
+
 
 class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 

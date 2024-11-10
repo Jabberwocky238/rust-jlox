@@ -6,6 +6,8 @@ mvn exec:java -Dexec.mainClass="com.jlox.Lox"
 
 java src\main\java\com\tool\GenerateAst.java src\main\java\com\utils
 
+mvn exec:java -Dexec.mainClass="com.jlox.Lox" -Dexec.args="../scripts/scope.lox"
+
 ```cpp
 
 // program        → declaration* EOF ;

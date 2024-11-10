@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
@@ -28,7 +29,14 @@ public class Lox {
     }
 
     private static void runFile(String path) throws IOException {
-        byte[] bytes = Files.readAllBytes(Paths.get(path));
+        Path pathfrompath;
+        try {
+            pathfrompath = Paths.get(path);
+        } catch (Exception e) {
+            System.out.println("Invalid path");
+            return;
+        }
+        byte[] bytes = Files.readAllBytes(pathfrompath);
         run(new String(bytes, Charset.defaultCharset()));
 
         // Indicate an error in the exit code.
