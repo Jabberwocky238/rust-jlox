@@ -1,4 +1,6 @@
-import com.craftinginterpreters.lox.Lox;
+package com.jlox;
+
+import com.jlox.Lox;
 
 class Interpreter implements Expr.Visitor<Object> {
 
@@ -7,7 +9,7 @@ class Interpreter implements Expr.Visitor<Object> {
             Object value = evaluate(expression);
             System.out.println(stringify(value));
         } catch (RuntimeError error) {
-            Lox.runtimeError(error);
+            // Lox.runtimeError(error);
         }
     }
 
@@ -73,9 +75,7 @@ class Interpreter implements Expr.Visitor<Object> {
                 if (left instanceof String && right instanceof String) {
                     return (String) left + (String) right;
                 }
-                throw new RuntimeError(expr.operator,
-                        "Operands must be two numbers or two strings.");
-                break;
+                throw new RuntimeError(expr.operator, "Operands must be two numbers or two strings.");
             case SLASH:
                 checkNumberOperands(expr.operator, left, right);
                 return (double) left / (double) right;
@@ -132,6 +132,5 @@ class Interpreter implements Expr.Visitor<Object> {
     static void runtimeError(RuntimeError error) {
         System.err.println(error.getMessage() +
                 "\n[line " + error.token.line + "]");
-        hadRuntimeError = true;
     }
 }

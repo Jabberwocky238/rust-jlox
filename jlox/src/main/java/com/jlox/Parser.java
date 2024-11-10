@@ -1,8 +1,8 @@
-package com.craftinginterpreters.lox;
+package com.jlox;
 
 import java.util.List;
 
-import static com.craftinginterpreters.lox.TokenType.*;
+import static com.jlox.TokenType.*;
 
 class Parser {
   private final List<Token> tokens;
@@ -150,14 +150,6 @@ class Parser {
   private ParseError error(Token token, String message) {
     Lox.error(token, message);
     return new ParseError();
-  }
-
-  static void error(Token token, String message) {
-    if (token.type == TokenType.EOF) {
-      report(token.line, " at end", message);
-    } else {
-      report(token.line, " at '" + token.lexeme + "'", message);
-    }
   }
 
   private void synchronize() {
