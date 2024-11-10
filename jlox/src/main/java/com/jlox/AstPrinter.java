@@ -2,6 +2,7 @@ package com.jlox;
 
 import com.utils.Expr;
 import com.utils.Expr.Assign;
+import com.utils.Expr.Logical;
 import com.utils.Expr.Variable;
 
 class AstPrinter implements Expr.Visitor<String> {
@@ -67,5 +68,11 @@ class AstPrinter implements Expr.Visitor<String> {
   public String visitVariableExpr(Variable expr) {
     // TODO Auto-generated method stub
     throw new UnsupportedOperationException("Unimplemented method 'visitVariableExpr'");
+  }
+
+  @Override
+  public String visitLogicalExpr(Logical expr) {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'visitLogicalExpr'");
   }
 }

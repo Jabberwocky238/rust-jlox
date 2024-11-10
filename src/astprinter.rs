@@ -1,22 +1,28 @@
 use std::rc::Rc;
 
-use crate::gen::Expr;
-use crate::gen::Visitable;
-use crate::gen::ExprVisitor;
-use crate::gen::Binary;
-use crate::gen::Group;
-use crate::gen::Literal;
-use crate::gen::Unary;
+use crate::gen::*;
+
 use crate::impl_expr_visitable;
+use crate::impl_stmt_visitable;
 
 pub struct AstPrinter;
 
 impl_expr_visitable! {
-    impl <String> for Expr, 
+    <String>, 
     (Binary, binary),
     (Group, grouping),
     (Literal, literal),
     (Unary, unary),
+    (Variable, variable),
+    (Assign, assign),
+}
+
+impl_stmt_visitable! {
+    <String>, 
+    (Expression, expression),
+    (Print, print),
+    (Var, var),
+    (Block, block),
 }
 
 // impl Visitable<String> for Expr {
@@ -49,10 +55,48 @@ impl ExprVisitor<String> for AstPrinter {
         return self.parenthesize("group", &[&expr.expression]);
     }
     fn visit_literal(&self, expr: &Literal) -> String {
-        String::from(expr.value.clone())
+        expr.to_string()
     }
     fn visit_unary(&self, expr: &Unary) -> String {
         return self.parenthesize(&expr.operator.lexeme, &[&expr.right]);
+    }
+    
+    fn visit_variable(&self, expr: &Variable) -> String {
+        String::from(expr.name.lexeme.clone())
+    }
+    
+    fn visit_assign(&self, stmt: &Assign) -> String {
+        String::from(format!("{} = {}", stmt.name.lexeme, stmt.value.accept(self)))
+    }
+}
+
+impl StmtVisitor<String> for AstPrinter {
+    fn visit_expression(&self, stmt: &Expression) -> String {
+        return format!("( {} )", stmt.expression.accept(self));
+    }
+    fn visit_print(&self, stmt: &Print) -> String {
+        return self.parenthesize(&"print", &[&stmt.expression]);
+    }
+    fn visit_var(&self, stmt: &Var) -> String {
+        match &stmt.initializer {
+            Some(expr) => {
+                return format!("( var {} = {} )", stmt.name.lexeme, expr.accept(self));
+            },
+            None => {
+                return format!("( var {} )", stmt.name.lexeme);
+            },
+        }
+    }
+    fn visit_block(&self, stmt: &Block) -> String {
+        let mut string_builder: Vec<String> = vec![];
+        string_builder.push("{".to_owned());
+        stmt.statements.iter().for_each(|stmt| {
+            string_builder.push("\n".to_owned());
+            let stmt = stmt.accept(self);
+            string_builder.push(stmt);
+        });
+        string_builder.push("\n}".to_owned());
+        return string_builder.join("");
     }
 }
 
@@ -62,8 +106,11 @@ where Self: ExprVisitor<String>
     pub fn new() -> Self {
         AstPrinter {}
     }
-    pub fn print(&self, expr: &Rc<Expr>) -> String {
+    pub fn print_expr(&self, expr: &Rc<Expr>) -> String {
         return expr.accept(self);
+    }
+    pub fn print_stmt(&self, stmt: &Rc<Stmt>) -> String {
+        return stmt.accept(self);
     }
     fn parenthesize(&self, name: &str, exprs: &[&Expr]) -> String {
         let mut string_builder: Vec<String> = vec![];
@@ -116,7 +163,7 @@ mod tests_4_ast_printer {
         );
 
         let ast_parser = AstPrinter::new();
-        let output = ast_parser.print(&expression);
+        let output = ast_parser.print_expr(&expression);
 
         assert_eq!("(* (- 123) (group 45.67))", output.as_str());
     }

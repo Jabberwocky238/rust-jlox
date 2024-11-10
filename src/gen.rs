@@ -46,6 +46,16 @@ impl_build!( Stmt, Print, [ expression: Rc<Expr> ] );
 impl_build!( Stmt, Var, [ name: Token, initializer: Option<Rc<Expr>> ] );
 impl_build!( Stmt, Block, [ statements: Vec<Rc<Stmt>> ] );
 
+impl std::fmt::Display for Literal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.value {
+            LiteralType::Number(n) => write!(f, "( number {} )", n),
+            LiteralType::String(s) => write!(f, "( str \"{}\" )", s),
+            LiteralType::Boolean(b) => write!(f, "( bool {} )", b),
+            LiteralType::Nil => write!(f, "( nil )"),
+        }
+    }
+}
 
 pub enum Expr {
     Binary(Binary),

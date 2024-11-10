@@ -1,20 +1,18 @@
 # jlox implementation in rust
-
-still in progress
-
-ended at chapter 7: Evaluating Expressions
-
-now at chapter 8: Statements and State
+still in progress at chapter 8: Statements and State  
 
 # unit tests
+```bash
 cargo test -- --test-threads=1
+```
 
 ## for modules
-cargo test tests_4_interpreter::
-
-cargo test tests_4_parser::
-
-cargo test tests_4_ast_printer::
+```bash
+cargo test
+```
 
 # run
-cargo run -- math1.lox
+```bash
+cargo run -- scripts/math1.lox
+cargo run -- scripts/scope.lox
+```

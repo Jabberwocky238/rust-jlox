@@ -2,13 +2,13 @@ mod errors;
 mod scanner;
 mod parser;
 mod interpreter;
-// mod astprinter;
+mod astprinter;
 mod gen;
 mod environment;
 
 use interpreter::Interpreter;
 use parser::Parser;
-// use astprinter::AstPrinter;
+use astprinter::AstPrinter;
 use scanner::Scanner;
 
 pub struct Lox {
@@ -61,8 +61,10 @@ impl Lox {
                 panic!("{}", e.0);
             },
         };
-        // let ast_printer = AstPrinter::new();
-        // println!("{}", ast_printer.print(&expression));
+        let ast_printer = AstPrinter::new();
+        for stmt in stmts.iter() {
+            println!("{}", ast_printer.print_stmt(stmt));
+        }
         
         match self.interpreter.interpret(&stmts) {
             Ok(_) => {},

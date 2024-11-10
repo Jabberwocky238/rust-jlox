@@ -1,4 +1,4 @@
-use std::cell::Cell;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::gen::*;
@@ -50,7 +50,7 @@ impl_stmt_visitable! {
 }
 
 pub struct Interpreter{
-    pub environment: Cell<Environment>,
+    pub environment: Rc<RefCell<Environment>>,
 }
 
 impl Interpreter 
@@ -58,7 +58,7 @@ impl Interpreter
 {
     pub fn new() -> Self {
         Interpreter {
-            environment: Cell::new(Environment::new()),
+            environment: Rc::new(Environment::new()),
         }
     }
     // commented at chapter 8 Executing statements
@@ -160,12 +160,12 @@ impl ExprVisitor<LiteralType> for Interpreter {
     }
     
     fn visit_variable(&self, expr: &Variable) -> LiteralType {
-        return self.environment..get(&expr.name.lexeme).unwrap().clone();
+        return self.environment.borrow().get(&expr.name.lexeme).unwrap();
     }
     
     fn visit_assign(&self, stmt: &Assign) -> LiteralType {
         let value = self.evaluate(&stmt.value);
-        self.environment.assign(&stmt.name.lexeme, value.clone());
+        self.environment.borrow_mut().assign(&stmt.name.lexeme, value.clone()).unwrap();
         return value;
     }
 }
@@ -186,16 +186,23 @@ impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
         } else {
             LiteralType::Nil
         };
-        self.environment.define(&stmt.name.lexeme, value);
+        self.environment.borrow_mut().define(&stmt.name.lexeme, value);
         Ok(())
     }
     
     fn visit_block(&self, stmt: &Block) -> Result<(), RuntimeError> {
-        let environment = Environment::build(Box::new(self.environment.clone()));
-        let interpreter = Interpreter { environment };
+        let new_environment: RefCell<Environment> = Environment::build(self.environment.clone());
+        let old_environment: Environment = self.environment.replace(new_environment.into_inner());
+        println!("new_environment: {}, old_environment: {}, new_encloure: {}", 
+            self.environment.borrow().uid, 
+            old_environment.uid, 
+            self.environment.borrow().enclosing.as_ref().unwrap().borrow().uid
+        );
+            
         for statement in stmt.statements.iter() {
-            interpreter.execute(statement)?;
+            self.execute(statement)?;
         }
+        self.environment.replace(old_environment);
         Ok(())
     }
 }
