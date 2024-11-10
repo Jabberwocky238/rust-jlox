@@ -1,10 +1,14 @@
 package com.jlox;
 
+import java.util.ArrayList;
 import java.util.List;
+
+import com.utils.Expr;
+import com.utils.Stmt;
 
 import static com.jlox.TokenType.*;
 
-class Parser {
+public class Parser {
   private final List<Token> tokens;
   private int current = 0;
 
@@ -15,12 +19,65 @@ class Parser {
     this.tokens = tokens;
   }
 
-  Expr parse() {
+  // Expr parse() {
+  // try {
+  // return expression();
+  // } catch (ParseError error) {
+  // return null;
+  // }
+  // }
+  List<Stmt> parse() {
+    List<Stmt> statements = new ArrayList<>();
+    while (!isAtEnd()) {
+      /// chapter 8.2.2 Parsing variables commented
+      // statements.add(statement());
+      statements.add(declaration());
+    }
+
+    return statements;
+  }
+
+  private Stmt declaration() {
     try {
-      return expression();
+      if (match(VAR))
+        return varDeclaration();
+
+      return statement();
     } catch (ParseError error) {
+      synchronize();
       return null;
     }
+  }
+
+  private Stmt varDeclaration() {
+    Token name = consume(IDENTIFIER, "Expect variable name.");
+
+    Expr initializer = null;
+    if (match(EQUAL)) {
+      initializer = expression();
+    }
+
+    consume(SEMICOLON, "Expect ';' after variable declaration.");
+    return new Stmt.Var(name, initializer);
+  }
+
+  private Stmt statement() {
+    if (match(PRINT))
+      return printStatement();
+
+    return expressionStatement();
+  }
+
+  private Stmt printStatement() {
+    Expr value = expression();
+    consume(SEMICOLON, "Expect ';' after value.");
+    return new Stmt.Print(value);
+  }
+
+  private Stmt expressionStatement() {
+    Expr expr = expression();
+    consume(SEMICOLON, "Expect ';' after expression.");
+    return new Stmt.Expression(expr);
   }
 
   private Expr expression() {
@@ -127,15 +184,16 @@ class Parser {
       return new Expr.Literal(true);
     if (match(NIL))
       return new Expr.Literal(null);
-
     if (match(NUMBER, STRING)) {
       return new Expr.Literal(previous().literal);
     }
-
     if (match(LEFT_PAREN)) {
       Expr expr = expression();
       consume(RIGHT_PAREN, "Expect ')' after expression.");
       return new Expr.Grouping(expr);
+    }
+    if (match(IDENTIFIER)) {
+      return new Expr.Variable(previous());
     }
     throw error(peek(), "Expect expression.");
   }

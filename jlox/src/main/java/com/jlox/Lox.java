@@ -8,6 +8,9 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 
+import com.utils.RuntimeError;
+import com.utils.Stmt;
+
 public class Lox {
     private static final Interpreter interpreter = new Interpreter();
     static boolean hadRuntimeError = false;
@@ -51,16 +54,18 @@ public class Lox {
     private static void run(String source) {
         Scanner scanner = new Scanner(source);
         List<Token> tokens = scanner.scanTokens();
+        Parser parser = new Parser(tokens);
+        List<Stmt> statements = parser.parse();
 
         // For now, just print the tokens.
-        for (Token token : tokens) {
-            System.out.println(token);
-        }
+        // for (Token token : tokens) {
+        //     System.out.println(token);
+        // }
 
         // Stop if there was a syntax error.
         if (hadError)
             return;
-        // interpreter.interpret(expression);
+        interpreter.interpret(statements);
     }
 
     static void error(int line, String message) {
@@ -75,8 +80,8 @@ public class Lox {
         }
     }
 
-    static void runtimeError(String message) {
-        System.err.println("Error: " + message);
+    static void runtimeError(RuntimeError error) {
+        System.err.println(error.getMessage() + "\n[line " + error.token.line + "]");
     }
 
     private static void report(int line, String where, String message) {
