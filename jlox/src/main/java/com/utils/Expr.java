@@ -1,5 +1,6 @@
 package com.utils;
 
+import java.util.List;
 import com.jlox.Token;
 
 public abstract class Expr {
@@ -8,6 +9,7 @@ public abstract class Expr {
     public R visitBinaryExpr(Binary expr);
     public R visitGroupingExpr(Grouping expr);
     public R visitLiteralExpr(Literal expr);
+    public R visitLogicalExpr(Logical expr);
     public R visitUnaryExpr(Unary expr);
     public R visitVariableExpr(Variable expr);
   }
@@ -64,6 +66,22 @@ public abstract class Expr {
     }
 
    public final Object value;
+  }
+  public static class Logical extends Expr {
+    public Logical(Expr left, Token operator, Expr right) {
+      this.left = left;
+      this.operator = operator;
+      this.right = right;
+    }
+
+    @Override
+    public <R> R accept(Visitor<R> visitor) {
+      return visitor.visitLogicalExpr(this);
+    }
+
+   public final Expr left;
+   public final Token operator;
+   public final Expr right;
   }
   public static class Unary extends Expr {
     public Unary(Token operator, Expr right) {
