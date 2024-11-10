@@ -11,29 +11,27 @@ java src\main\java\com\tool\GenerateAst.java src\main\java\com\utils
 // program        → declaration* EOF ;
 
 // declaration    → varDecl | statement ;
-// statement      → exprStmt | printStmt ;
+// varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
+// statement      → exprStmt | printStmt | block ;
+
 // exprStmt       → expression ";" ;
 // printStmt      → "print" expression ";" ;
+// block          → "{" declaration* "}" ;
 
-// varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
-// primary        → "true" | "false" | "nil" | NUMBER | STRING | "(" expression ")" | IDENTIFIER ;
-
-// expression     → literal | unary | binary | grouping ;
+// expression     → assignment ;
+// assignment     → IDENTIFIER "=" assignment | equality ;
 // literal        → NUMBER | STRING | "true" | "false" | "nil" ;
 // grouping       → "(" expression ")" ;
 // unary          → ( "-" | "!" ) expression ;
 // binary         → expression operator expression ;
 // operator       → "==" | "!=" | "<" | "<=" | ">" | ">=" | "+"  | "-"  | "*" | "/" ;
 
-
-
-
-// expression     → equality ;
 // equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 // comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 // term           → factor ( ( "-" | "+" ) factor )* ;
 // factor         → unary ( ( "/" | "*" ) unary )* ;
-// unary          → ( "!" | "-" ) unary
-//                | primary ;
-// primary        → NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" | IDENTIFIER ;
+// unary          → ( "!" | "-" ) unary | primary ;
+
+// primary        → "true" | "false" | "nil" | NUMBER | STRING | "(" expression ")" | IDENTIFIER ;
+
 ```
