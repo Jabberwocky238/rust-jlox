@@ -1,17 +1,17 @@
 use std::rc::Rc;
 
-use crate::exprs::Expr;
-use crate::exprs::Visitable;
-use crate::exprs::Visitor;
-use crate::exprs::Binary;
-use crate::exprs::Group;
-use crate::exprs::Literal;
-use crate::exprs::Unary;
-use crate::impl_visitable;
+use crate::gen::Expr;
+use crate::gen::Visitable;
+use crate::gen::ExprVisitor;
+use crate::gen::Binary;
+use crate::gen::Group;
+use crate::gen::Literal;
+use crate::gen::Unary;
+use crate::impl_expr_visitable;
 
 pub struct AstPrinter;
 
-impl_visitable! {
+impl_expr_visitable! {
     impl <String> for Expr, 
     (Binary, binary),
     (Group, grouping),
@@ -38,26 +38,26 @@ impl_visitable! {
 //     }
 // }
 
-impl Visitor<String> for AstPrinter {
-    fn visit_binary_expr(&self, expr: &Binary) -> String {
+impl ExprVisitor<String> for AstPrinter {
+    fn visit_binary(&self, expr: &Binary) -> String {
         return self.parenthesize(
             &expr.operator.lexeme,
             &[&expr.left, &expr.right],
         );
     }
-    fn visit_grouping_expr(&self, expr: &Group) -> String {
+    fn visit_grouping(&self, expr: &Group) -> String {
         return self.parenthesize("group", &[&expr.expression]);
     }
-    fn visit_literal_expr(&self, expr: &Literal) -> String {
+    fn visit_literal(&self, expr: &Literal) -> String {
         String::from(expr.value.clone())
     }
-    fn visit_unary_expr(&self, expr: &Unary) -> String {
+    fn visit_unary(&self, expr: &Unary) -> String {
         return self.parenthesize(&expr.operator.lexeme, &[&expr.right]);
     }
 }
 
 impl AstPrinter 
-where Self: Visitor<String> 
+where Self: ExprVisitor<String> 
 {
     pub fn new() -> Self {
         AstPrinter {}
@@ -84,9 +84,9 @@ where Self: Visitor<String>
 #[cfg(test)]
 mod tests_4_ast_printer {
     use std::rc::Rc;
-    use crate::exprs::*;
+    use crate::gen::*;
     use crate::astprinter::AstPrinter;
-    use crate::exprs::Expr;
+    use crate::gen::Expr;
     use crate::scanner::{LiteralType, Token, TokenType};
 
     fn easy_number(num: f64) -> Rc<Expr> {

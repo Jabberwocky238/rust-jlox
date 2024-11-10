@@ -1,12 +1,7 @@
 use std::rc::Rc;
 
-use super::exprs::Expr;
-use super::exprs::Visitor;
-use super::exprs::Binary;
-use super::exprs::Group;
-use super::exprs::Literal;
-use super::exprs::Unary;
-use super::exprs::Visitable;
+use super::gen::*;
+
 use super::scanner::TokenType;
 use super::scanner::LiteralType;
 use super::scanner::Token;
@@ -31,21 +26,27 @@ use super::errors::RuntimeError;
 //     }
 // }
 
-use crate::impl_visitable;
+use crate::impl_expr_visitable;
+use crate::impl_stmt_visitable;
 
-impl_visitable! {
-    impl <LiteralType> for Expr, 
+impl_expr_visitable! {
+    <LiteralType>, 
     (Binary, binary),
     (Group, grouping),
     (Literal, literal),
     (Unary, unary),
 }
 
+impl_stmt_visitable! {
+    <Result<(), RuntimeError>>, 
+    (Expression, expression),
+    (Print, print),
+}
+
 pub struct Interpreter;
 
-
-impl Visitor<LiteralType> for Interpreter {
-    fn visit_binary_expr(&self, expr: &Binary) -> LiteralType {
+impl ExprVisitor<LiteralType> for Interpreter {
+    fn visit_binary(&self, expr: &Binary) -> LiteralType {
         let left = self.evaluate(&expr.left);
         let right = self.evaluate(&expr.right);
 
@@ -99,13 +100,13 @@ impl Visitor<LiteralType> for Interpreter {
         }
         // Unreachable.
     }
-    fn visit_grouping_expr(&self, expr: &Group) -> LiteralType {
+    fn visit_grouping(&self, expr: &Group) -> LiteralType {
         return self.evaluate(&expr.expression);
     }
-    fn visit_literal_expr(&self, expr: &Literal) -> LiteralType {
+    fn visit_literal(&self, expr: &Literal) -> LiteralType {
         return expr.value.clone();
     }
-    fn visit_unary_expr(&self, expr: &Unary) -> LiteralType {
+    fn visit_unary(&self, expr: &Unary) -> LiteralType {
         let right = self.evaluate(&expr.right);
         match expr.operator._type {
             TokenType::BANG => {
@@ -124,15 +125,38 @@ impl Visitor<LiteralType> for Interpreter {
     }
 }
 
+impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
+    fn visit_expression(&self, stmt: &Expression) -> Result<(), RuntimeError> {
+        let _ = self.evaluate(&stmt.expression);
+        Ok(())
+    }
+    fn visit_print(&self, stmt: &Print) -> Result<(), RuntimeError> {
+        let value = self.evaluate(&stmt.expression);
+        println!("{}", stringify(value));
+        Ok(())
+    }
+    
+}
+
 impl Interpreter 
-    where Self: Visitor<LiteralType>
+    where Self: ExprVisitor<LiteralType>
 {
     pub fn new() -> Self {
         Interpreter {}
     }
-    pub fn interpret(&self, expr: &Rc<Expr>) -> Result<String, RuntimeError> {
-        let value = self.evaluate(expr);
-        Ok(stringify(value))
+    // commented at chapter 8 Executing statements
+    // pub fn interpret(&self, expr: &Rc<Expr>) -> Result<String, RuntimeError> {
+    //     let value = self.evaluate(expr);
+    //     Ok(stringify(value))
+    // }
+    pub fn interpret(&self, expr: &Vec<Rc<Stmt>>) -> Result<(), RuntimeError> {
+        for stmt in expr.iter() {
+            self.execute(stmt)?;
+        }
+        Ok(())
+    }
+    fn execute(&self, stmt: &Rc<Stmt>) -> Result<(), RuntimeError> {
+        stmt.accept(self)
     }
     fn evaluate(&self, expr: &Rc<Expr>) -> LiteralType {
         return expr.accept(self);
@@ -141,8 +165,7 @@ impl Interpreter
 
 
 fn error(token: &Token, message: &String) -> RuntimeError {
-    let err = format!("Error {}: {}", token.line, message);
-    return RuntimeError(err);
+    return RuntimeError(format!("Error {}: {}", token.line, message));
 }
 
 fn check_number_operands(operator: &Token, left: &LiteralType, right: &LiteralType) -> Result<(f64, f64), RuntimeError> {
@@ -198,45 +221,45 @@ fn stringify(object: LiteralType) -> String {
 }
 
 
-#[cfg(test)]
-mod tests_4_interpreter {
-    use crate::interpreter::Interpreter;
-    use crate::Parser;
-    use crate::scanner::Scanner;
+// #[cfg(test)]
+// mod tests_4_interpreter {
+//     use crate::interpreter::Interpreter;
+//     use crate::Parser;
+//     use crate::scanner::Scanner;
 
-    fn easy_test(source: &String) -> String {
-        let mut scanner = Scanner::build(source);
-        let tokens = scanner.scan_tokens().clone();
-        let parser = Parser::new(tokens);
-        let expression = parser.parse().unwrap();
-        let interpreter = Interpreter::new();
-        let output = interpreter.interpret(&expression).unwrap();
-        output
-    }
+//     fn easy_test(source: &String) -> String {
+//         let mut scanner = Scanner::build(source);
+//         let tokens = scanner.scan_tokens().clone();
+//         let parser = Parser::new(tokens);
+//         let expression = parser.parse().unwrap();
+//         let interpreter = Interpreter::new();
+//         let output = interpreter.interpret(&expression).unwrap();
+//         output
+//     }
 
-    #[test]
-    fn test1() {
-        let source: String = "1 >= 99 and 5.2 == 5.2 or 2.2 > 3.3)".to_string();
-        let output = easy_test(&source);
-        assert_eq!("false", output.as_str());
-    }
+//     #[test]
+//     fn test1() {
+//         let source: String = "1 >= 99 and 5.2 == 5.2 or 2.2 > 3.3)".to_string();
+//         let output = easy_test(&source);
+//         assert_eq!("false", output.as_str());
+//     }
     
-    #[test]
-    fn test2() {
-        let source: String = "1 >= 99 or 5.2 == 5.2 and 2.2 < 3.3".to_string();
-        let output = easy_test(&source);
-        assert_eq!("false", output.as_str());
-    }
-    #[test]
-    fn test3() {
-        let source: String = "1 + 2 * 3 + 4".to_string();
-        let output = easy_test(&source);
-        assert_eq!("11", output.as_str());
-    }
-    #[test]
-    fn test4() {
-        let source: String = "\"hello\" + \"world\"".to_string();
-        let output = easy_test(&source);
-        assert_eq!("helloworld", output.as_str());
-    }
-}
+//     #[test]
+//     fn test2() {
+//         let source: String = "1 >= 99 or 5.2 == 5.2 and 2.2 < 3.3".to_string();
+//         let output = easy_test(&source);
+//         assert_eq!("false", output.as_str());
+//     }
+//     #[test]
+//     fn test3() {
+//         let source: String = "1 + 2 * 3 + 4".to_string();
+//         let output = easy_test(&source);
+//         assert_eq!("11", output.as_str());
+//     }
+//     #[test]
+//     fn test4() {
+//         let source: String = "\"hello\" + \"world\"".to_string();
+//         let output = easy_test(&source);
+//         assert_eq!("helloworld", output.as_str());
+//     }
+// }

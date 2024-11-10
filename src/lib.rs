@@ -2,12 +2,12 @@ mod errors;
 mod scanner;
 mod parser;
 mod interpreter;
-mod astprinter;
-mod exprs;
+// mod astprinter;
+mod gen;
 
 use interpreter::Interpreter;
 use parser::Parser;
-use astprinter::AstPrinter;
+// use astprinter::AstPrinter;
 use scanner::Scanner;
 
 pub struct Lox {
@@ -42,30 +42,29 @@ impl Lox {
         // }
     }
     fn run(&mut self, source: &String) {
-        println!("Running: {}", source);
+        // println!("Running: {}", source);
+        
         let mut scanner = Scanner::build(source);
         let tokens = scanner.scan_tokens().clone();
         // For now, just print the tokens.
-        for token in tokens.iter() {
-            println!("{:?}", token);
-        }
+        // for token in tokens.iter() {
+        //     println!("{:?}", token);
+        // }
 
         let parser: Parser = Parser::new(tokens);
-        let expression = match parser.parse() {
-            Ok(expr) => expr,
+        let stmts = match parser.parse() {
+            Ok(stmts) => stmts,
             Err(e) => {
                 self.had_error = true;
                 // Stop if there was a syntax error.
                 panic!("{}", e.0);
             },
         };
-        let ast_printer = AstPrinter::new();
-        println!("{}", ast_printer.print(&expression));
+        // let ast_printer = AstPrinter::new();
+        // println!("{}", ast_printer.print(&expression));
         
-        match self.interpreter.interpret(&expression) {
-            Ok(output) => {
-                println!("{}", output);
-            },
+        match self.interpreter.interpret(&stmts) {
+            Ok(_) => {},
             Err(e) => {
                 self.had_error = true;
                 panic!("{}", e.0);

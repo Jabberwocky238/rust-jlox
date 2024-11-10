@@ -1,55 +1,61 @@
 use std::cell::Cell;
 use std::rc::Rc;
+use std::vec;
 
-use super::exprs::Expr;
-use super::exprs::Binary;
-use super::exprs::Group;
-use super::exprs::Literal;
-use super::exprs::Unary;
+use crate::gen::*;
 
-use super::scanner::LiteralType;
-use super::scanner::TokenType;
-use super::scanner::Token;
+use crate::scanner::LiteralType;
+use crate::scanner::TokenType;
+use crate::scanner::Token;
 
-use super::errors::ParseError;
-
-// expression     → literal
-//                | unary
-//                | binary
-//                | grouping ;
-// literal        → NUMBER | STRING | "true" | "false" | "nil" ;
-// grouping       → "(" expression ")" ;
-// unary          → ( "-" | "!" ) expression ;
-// binary         → expression operator expression ;
-// operator       → "==" | "!=" | "<" | "<=" | ">" | ">="
-//                | "+"  | "-"  | "*" | "/" ;
-
-// expression     → equality ;
-// equality       → comparison ( ( "!=" | "==" ) comparison )* ;
-// comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
-// term           → factor ( ( "-" | "+" ) factor )* ;
-// factor         → unary ( ( "/" | "*" ) unary )* ;
-// unary          → ( "!" | "-" ) unary
-//                | primary ;
-// primary        → NUMBER | STRING | "true" | "false" | "nil"
-//                | "(" expression ")" ;
+use crate::errors::ParseError;
 
 pub struct Parser {
     current: Cell<usize>,
     tokens: Vec<Token>,
 }
 
-fn error(token: Option<&Token>, message: String) -> ParseError {
-    let err = format!("Error {}: {}", token.unwrap().line, message);
-    return ParseError(err);
+fn error(token: Option<&Token>, message: &str) -> ParseError {
+    ParseError(
+        format!("Error {}: {}", token.unwrap().line, message)
+    )
 }
+
+type ParseResult<T> = Result<T, ParseError>;
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         Self { current: Cell::new(0), tokens }
     }
-    pub fn parse(&self) -> Result<Rc<Expr>, ParseError> {
-        self.expression()
+    pub fn parse(&self) -> ParseResult<Vec<Rc<Stmt>>> {
+        let mut stmts = vec![];
+        while !self.is_at_end() {
+            let stmt = self.statement().unwrap();
+            stmts.push(stmt);
+        }
+        return Ok(stmts);
+    }
+
+    fn statement(&self) -> ParseResult<Rc<Stmt>> {
+        if self._match(&[TokenType::PRINT]) {
+            return self.print_statement();
+        }
+        // if self._match(&[TokenType::LEFTBRACE]) {
+        //     return self.block();
+        // }
+        return self.expression_statement();
+    }
+
+    fn print_statement(&self) -> ParseResult<Rc<Stmt>> {
+        let value = self.expression()?;
+        self.consume(&TokenType::SEMICOLON, "Expect ';' after value.")?;
+        return Ok(Print::build(value));
+    }
+
+    fn expression_statement(&self) -> ParseResult<Rc<Stmt>> {
+        let value = self.expression()?;
+        self.consume(&TokenType::SEMICOLON, "Expect ';' after value.")?;
+        return Ok(Expression::build(value));
     }
 
     fn expression(&self) -> Result<Rc<Expr>, ParseError> {
@@ -173,14 +179,14 @@ impl Parser {
             let expr = self.expression().unwrap();
             let _ = self.consume(
                 &TokenType::RIGHTPAREN,
-                String::from("Expect ')' after expression."),
+                "Expect ')' after expression.",
             );
             return Ok(Group::build(expr));
         }
-        Err(error(self.peek(), String::from("Expect expression.")))
+        Err(error(self.peek(), "Expect expression."))
     }
 
-    fn consume(&self, _type: &TokenType, message: String) -> Result<(), ParseError> {
+    fn consume(&self, _type: &TokenType, message: &str) -> Result<(), ParseError> {
         if self.check(_type) {
             self.advance();
             return Ok(());
@@ -214,34 +220,34 @@ impl Parser {
     }
 }
 
-#[cfg(test)]
-mod tests_4_parser {
-    use crate::astprinter::AstPrinter;
-    use crate::parser::Parser;
-    use crate::scanner::Scanner;
+// #[cfg(test)]
+// mod tests_4_parser {
+//     use crate::astprinter::AstPrinter;
+//     use crate::parser::Parser;
+//     use crate::scanner::Scanner;
 
-    fn easy_test(source: String) -> String {
-        let mut scanner = Scanner::build(&source);
-        let tokens = scanner.scan_tokens().clone();
-        let parser = Parser::new(tokens);
-        let expression = parser.parse().unwrap();
-        let ast_parser = AstPrinter::new();
-        ast_parser.print(&expression)
-    }
+//     fn easy_test(source: String) -> String {
+//         let mut scanner = Scanner::build(&source);
+//         let tokens = scanner.scan_tokens().clone();
+//         let parser = Parser::new(tokens);
+//         let expression = parser.parse().unwrap();
+//         let ast_parser = AstPrinter::new();
+//         ast_parser.print(&expression)
+//     }
 
-    #[test]
-    fn test1() {
-        let source: String = "(1 + 2) * (4 - 3);".to_string();
-        let output = easy_test(source);
+//     #[test]
+//     fn test1() {
+//         let source: String = "(1 + 2) * (4 - 3);".to_string();
+//         let output = easy_test(source);
 
-        assert_eq!("(* (group (+ 1 2)) (group (- 4 3)))", output.as_str());
-    }
+//         assert_eq!("(* (group (+ 1 2)) (group (- 4 3)))", output.as_str());
+//     }
 
-    #[test]
-    fn test2() {
-        let source: String = "1 >= 99 + 5.2 == 2.2 > 3.3;".to_string();
-        let output = easy_test(source);
+//     #[test]
+//     fn test2() {
+//         let source: String = "1 >= 99 + 5.2 == 2.2 > 3.3;".to_string();
+//         let output = easy_test(source);
 
-        assert_eq!("(== (>= 1 (+ 99 5.2)) (> 2.2 3.3))", output.as_str());
-    }
-}
+//         assert_eq!("(== (>= 1 (+ 99 5.2)) (> 2.2 3.3))", output.as_str());
+//     }
+// }
