@@ -40,11 +40,14 @@ impl_build!( Expr, Unary, [ operator: Token, right: Rc<Expr> ] );
 impl_build!( Expr, Literal, [ value: LiteralType ] );
 impl_build!( Expr, Variable, [ name: Token ] );
 impl_build!( Expr, Assign, [ name: Token, value: Rc<Expr> ] );
+impl_build!( Expr, Logical, [ left: Rc<Expr>, operator: Token, right: Rc<Expr> ] );
 
 impl_build!( Stmt, Expression, [ expression: Rc<Expr> ] );
 impl_build!( Stmt, Print, [ expression: Rc<Expr> ] );
 impl_build!( Stmt, Var, [ name: Token, initializer: Option<Rc<Expr>> ] );
 impl_build!( Stmt, Block, [ statements: Vec<Rc<Stmt>> ] );
+impl_build!( Stmt, If, [ condition: Rc<Expr>, then_branch: Rc<Stmt>, else_branch: Option<Rc<Stmt>> ] );
+impl_build!( Stmt, While, [ condition: Rc<Expr>, body: Rc<Stmt> ] );
 
 impl std::fmt::Display for Literal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -64,6 +67,7 @@ pub enum Expr {
     Unary(Unary),
     Variable(Variable),
     Assign(Assign),
+    Logical(Logical),
 }
 
 pub enum Stmt {
@@ -71,6 +75,8 @@ pub enum Stmt {
     Print(Print),
     Var(Var),
     Block(Block),
+    If(If),
+    While(While),
 }
 
 pub trait ExprVisitor<R> {
@@ -80,6 +86,7 @@ pub trait ExprVisitor<R> {
     fn visit_unary(&self, expr: &Unary) -> R;
     fn visit_variable(&self, expr: &Variable) -> R;
     fn visit_assign(&self, stmt: &Assign) -> R;
+    fn visit_logical(&self, stmt: &Logical) -> R;
 }
 
 pub trait StmtVisitor<R> {
@@ -87,6 +94,8 @@ pub trait StmtVisitor<R> {
     fn visit_print(&self, stmt: &Print) -> R;
     fn visit_var(&self, stmt: &Var) -> R;
     fn visit_block(&self, stmt: &Block) -> R;
+    fn visit_if(&self, stmt: &If) -> R;
+    fn visit_while(&self, stmt: &While) -> R;
 }
 
 pub trait ExprVisitable<R: ?Sized> {

@@ -3,7 +3,7 @@ mod scanner;
 mod parser;
 mod interpreter;
 mod astprinter;
-mod gen;
+mod ast;
 mod environment;
 
 use interpreter::Interpreter;

@@ -2,11 +2,11 @@ use std::cell::Cell;
 use std::rc::Rc;
 use std::vec;
 
-use crate::gen::*;
+use crate::ast::*;
 
 use crate::scanner::LiteralType;
-use crate::scanner::TokenType;
 use crate::scanner::Token;
+use crate::scanner::TokenType;
 
 use crate::errors::ParseError;
 
@@ -16,20 +16,21 @@ pub struct Parser {
 }
 
 fn error(token: Option<&Token>, message: &str) -> ParseError {
-    ParseError(
-        format!("Error {}: {}", token.unwrap().line, message)
-    )
+    ParseError(format!("Error {}: {}", token.unwrap().line, message))
 }
 
 type ParseResult<T> = Result<T, ParseError>;
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self { current: Cell::new(0), tokens }
+        Self {
+            current: Cell::new(0),
+            tokens,
+        }
     }
     pub fn parse(&self) -> ParseResult<Vec<Rc<Stmt>>> {
         let mut stmts = vec![];
-        while !self.is_at_end() {
+        while !self._is_end() {
             let stmt = self.declaration()?;
             stmts.push(stmt);
         }
@@ -44,19 +45,31 @@ impl Parser {
     }
 
     fn var_declaration(&self) -> ParseResult<Rc<Stmt>> {
-        let name = self.consume(&TokenType::IDENTIFIER, "Expect variable name.")?;
+        let name = self._consume(&TokenType::IDENTIFIER, "Expect variable name.")?;
         let initializer = if self._match(&[TokenType::EQUAL]) {
             Some(self.expression()?)
         } else {
             None
         };
-        self.consume(&TokenType::SEMICOLON, "Expect ';' after variable declaration.")?;
+        self._consume(
+            &TokenType::SEMICOLON,
+            "Expect ';' after variable declaration.",
+        )?;
         return Ok(Var::build(name.clone(), initializer));
     }
 
     fn statement(&self) -> ParseResult<Rc<Stmt>> {
+        if self._match(&[TokenType::FOR]) {
+            return self.for_statement();
+        }
+        if self._match(&[TokenType::IF]) {
+            return self.if_statement();
+        }
         if self._match(&[TokenType::PRINT]) {
             return self.print_statement();
+        }
+        if self._match(&[TokenType::WHILE]) {
+            return self.while_statement();
         }
         if self._match(&[TokenType::LEFTBRACE]) {
             return self.block();
@@ -64,35 +77,98 @@ impl Parser {
         return self.expression_statement();
     }
 
+    fn for_statement(&self) -> ParseResult<Rc<Stmt>> {
+        self._consume(&TokenType::LEFTPAREN, "Expect '(' after 'for'.")?;
+
+        let initializer = if self._match(&[TokenType::SEMICOLON]) {
+            None
+        } else if self._match(&[TokenType::VAR]) {
+            Some(self.var_declaration()?)
+        } else {
+            Some(self.expression_statement()?)
+        };
+
+        let condition = if !self._check(&TokenType::SEMICOLON) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+        self._consume(&TokenType::SEMICOLON, "Expect ';' after loop condition.")?;
+
+        let increment = if !self._check(&TokenType::RIGHTPAREN) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+        self._consume(&TokenType::RIGHTPAREN, "Expect ')' after for clauses.")?;
+
+        let mut body = self.statement()?;
+        
+        if let Some(increment) = increment {
+            body = Block::build(vec![body, Expression::build(increment)]);
+        }
+        if let Some(condition) = condition {
+            body = While::build(condition, body);
+        } else {
+            body = While::build(Literal::build(LiteralType::Boolean(true)), body);
+        }
+        if let Some(initializer) = initializer {
+            body = Block::build(vec![initializer, body]);
+        }
+        
+        return Ok(body);
+    }
+
+    fn if_statement(&self) -> ParseResult<Rc<Stmt>> {
+        self._consume(&TokenType::LEFTPAREN, "Expect '(' after 'if'.")?;
+        let condition = self.expression()?;
+        self._consume(&TokenType::RIGHTPAREN, "Expect ')' after if condition.")?;
+        let then_branch = self.statement()?;
+        let else_branch = if self._match(&[TokenType::ELSE]) {
+            Some(self.statement()?)
+        } else {
+            None
+        };
+        return Ok(If::build(condition, then_branch, else_branch));
+    }
+
     fn print_statement(&self) -> ParseResult<Rc<Stmt>> {
         let value = self.expression()?;
-        self.consume(&TokenType::SEMICOLON, "Expect ';' after value.")?;
+        self._consume(&TokenType::SEMICOLON, "Expect ';' after value.")?;
         return Ok(Print::build(value));
+    }
+
+    fn while_statement(&self) -> ParseResult<Rc<Stmt>> {
+        self._consume(&TokenType::LEFTPAREN, "Expect '(' after 'while'.")?;
+        let condition = self.expression()?;
+        self._consume(&TokenType::RIGHTPAREN, "Expect ')' after condition.")?;
+        let body = self.statement()?;
+        return Ok(While::build(condition, body));
     }
 
     fn block(&self) -> ParseResult<Rc<Stmt>> {
         let mut statements = vec![];
-        while !self.check(&TokenType::RIGHTBRACE) && !self.is_at_end() {
+        while !self._check(&TokenType::RIGHTBRACE) && !self._is_end() {
             statements.push(self.declaration()?);
         }
-        self.consume(&TokenType::RIGHTBRACE, "Expect '}' after block.")?;
+        self._consume(&TokenType::RIGHTBRACE, "Expect '}' after block.")?;
         return Ok(Block::build(statements));
     }
 
     fn expression_statement(&self) -> ParseResult<Rc<Stmt>> {
         let value = self.expression()?;
-        self.consume(&TokenType::SEMICOLON, "Expect ';' after value.")?;
+        self._consume(&TokenType::SEMICOLON, "Expect ';' after value.")?;
         return Ok(Expression::build(value));
     }
 
-    fn expression(&self) -> Result<Rc<Expr>, ParseError> {
+    fn expression(&self) -> ParseResult<Rc<Expr>> {
         return self.assignment();
     }
 
-    fn assignment(&self) -> Result<Rc<Expr>, ParseError> {
-        let expr = self.equality()?;
+    fn assignment(&self) -> ParseResult<Rc<Expr>> {
+        let expr = self.or()?;
         if self._match(&[TokenType::EQUAL]) {
-            let equals = self.previous().unwrap();
+            let equals = self._previous().unwrap();
             let value = self.assignment()?;
             if let Expr::Variable(x) = expr.as_ref() {
                 let name = x.name.clone();
@@ -103,12 +179,31 @@ impl Parser {
         return Ok(expr);
     }
 
+    fn or(&self) -> ParseResult<Rc<Expr>> {
+        let mut expr = self.and()?;
+        while self._match(&[TokenType::OR]) {
+            let operator = self._previous().unwrap();
+            let right = self.and()?;
+            expr = Logical::build(expr, operator.clone(), right);
+        }
+        return Ok(expr);
+    }
 
-    fn equality(&self) -> Result<Rc<Expr>, ParseError> {
+    fn and(&self) -> ParseResult<Rc<Expr>> {
+        let mut expr = self.equality()?;
+        while self._match(&[TokenType::AND]) {
+            let operator = self._previous().unwrap();
+            let right = self.equality()?;
+            expr = Logical::build(expr, operator.clone(), right);
+        }
+        return Ok(expr);
+    }
+
+    fn equality(&self) -> ParseResult<Rc<Expr>> {
         let mut expr = self.comparison().unwrap();
 
         while self._match(&[TokenType::BANGEQUAL, TokenType::EQUALEQUAL]) {
-            let operator = self.previous().unwrap();
+            let operator = self._previous().unwrap();
             let right = self.comparison().unwrap();
             expr = Binary::build(expr, operator.clone(), right);
         }
@@ -116,49 +211,7 @@ impl Parser {
         return Ok(expr);
     }
 
-    fn _match(&self, types: &[TokenType]) -> bool {
-        for _type in types {
-            if self.check(_type) {
-                self.advance();
-                return true;
-            }
-        }
-        return false;
-    }
-
-    fn check(&self, _type: &TokenType) -> bool {
-        if self.is_at_end() {
-            return false;
-        }
-        if let Some(token) = self.peek() {
-            return &token._type == _type;
-        }
-        return false;
-    }
-
-    fn advance(&self) -> Option<&Token> {
-        if !self.is_at_end() {
-            self.current.set(self.current.get() + 1);
-        }
-        return self.previous();
-    }
-
-    fn is_at_end(&self) -> bool {
-        if let Some(token) = self.peek() {
-            return token._type == TokenType::EOF;
-        }
-        return false;
-    }
-
-    fn peek(&self) -> Option<&Token> {
-        return self.tokens.get(self.current.get());
-    }
-
-    fn previous(&self) -> Option<&Token> {
-        return self.tokens.get(self.current.get() - 1);
-    }
-
-    fn comparison(&self) -> Result<Rc<Expr>, ParseError> {
+    fn comparison(&self) -> ParseResult<Rc<Expr>> {
         let mut expr = self.term().unwrap();
         while self._match(&[
             TokenType::GREATER,
@@ -166,43 +219,43 @@ impl Parser {
             TokenType::LESS,
             TokenType::LESSEQUAL,
         ]) {
-            let operator = self.previous().unwrap();
+            let operator = self._previous().unwrap();
             let right = self.term().unwrap();
             expr = Binary::build(expr, operator.clone(), right);
         }
         return Ok(expr);
     }
 
-    fn term(&self) -> Result<Rc<Expr>, ParseError> {
+    fn term(&self) -> ParseResult<Rc<Expr>> {
         let mut expr = self.factor().unwrap();
         while self._match(&[TokenType::MINUS, TokenType::PLUS]) {
-            let operator = self.previous().unwrap();
+            let operator = self._previous().unwrap();
             let right = self.factor().unwrap();
             expr = Binary::build(expr, operator.clone(), right);
         }
         return Ok(expr);
     }
 
-    fn factor(&self) -> Result<Rc<Expr>, ParseError> {
+    fn factor(&self) -> ParseResult<Rc<Expr>> {
         let mut expr = self.unary().unwrap();
         while self._match(&[TokenType::SLASH, TokenType::STAR]) {
-            let operator = self.previous().unwrap();
+            let operator = self._previous().unwrap();
             let right = self.unary().unwrap();
             expr = Binary::build(expr, operator.clone(), right);
         }
         return Ok(expr);
     }
 
-    fn unary(&self) -> Result<Rc<Expr>, ParseError> {
+    fn unary(&self) -> ParseResult<Rc<Expr>> {
         if self._match(&[TokenType::BANG, TokenType::MINUS]) {
-            let operator = self.previous().unwrap();
+            let operator = self._previous().unwrap();
             let right = self.unary().unwrap();
             return Ok(Unary::build(operator.clone(), right));
         }
         return self.primary();
     }
 
-    fn primary(&self) -> Result<Rc<Expr>, ParseError> {
+    fn primary(&self) -> ParseResult<Rc<Expr>> {
         if self._match(&[TokenType::FALSE]) {
             return Ok(Literal::build(LiteralType::Boolean(false)));
         }
@@ -213,44 +266,84 @@ impl Parser {
             return Ok(Literal::build(LiteralType::Nil));
         }
         if self._match(&[TokenType::NUMBER, TokenType::STRING]) {
-            if let Some(token) = self.previous() {
+            if let Some(token) = self._previous() {
                 return Ok(Literal::build(token.literal.clone()));
             }
         }
         if self._match(&[TokenType::IDENTIFIER]) {
-            if let Some(token) = self.previous() {
+            if let Some(token) = self._previous() {
                 return Ok(Variable::build(token.clone()));
             }
         }
         if self._match(&[TokenType::LEFTPAREN]) {
             let expr = self.expression().unwrap();
-            let _ = self.consume(
-                &TokenType::RIGHTPAREN,
-                "Expect ')' after expression.",
-            );
+            let _ = self._consume(&TokenType::RIGHTPAREN, "Expect ')' after expression.");
             return Ok(Group::build(expr));
         }
-        Err(error(self.peek(), "Expect expression."))
+        Err(error(self._peek(), "Expect expression."))
     }
 
-    fn consume(&self, _type: &TokenType, message: &str) -> Result<&Token, ParseError> {
-        if self.check(_type) {
-            if let Some(token) = self.advance() {
+    fn _match(&self, types: &[TokenType]) -> bool {
+        for _type in types {
+            if self._check(_type) {
+                self._advance();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    fn _check(&self, _type: &TokenType) -> bool {
+        if self._is_end() {
+            return false;
+        }
+        if let Some(token) = self._peek() {
+            return &token._type == _type;
+        }
+        return false;
+    }
+
+    fn _advance(&self) -> Option<&Token> {
+        if !self._is_end() {
+            self.current.set(self.current.get() + 1);
+        }
+        return self._previous();
+    }
+
+    fn _is_end(&self) -> bool {
+        if let Some(token) = self._peek() {
+            token._type == TokenType::EOF
+        } else {
+            false
+        }
+    }
+
+    fn _peek(&self) -> Option<&Token> {
+        self.tokens.get(self.current.get())
+    }
+
+    fn _previous(&self) -> Option<&Token> {
+        self.tokens.get(self.current.get() - 1)
+    }
+
+    fn _consume(&self, _type: &TokenType, message: &str) -> Result<&Token, ParseError> {
+        if self._check(_type) {
+            if let Some(token) = self._advance() {
                 return Ok(token);
             }
         }
-        Err(error(self.peek(), message))
+        Err(error(self._peek(), message))
     }
 
     fn synchronize(&mut self) {
-        self.advance();
-        while !self.is_at_end() {
-            if let Some(current) = self.previous() {
+        self._advance();
+        while !self._is_end() {
+            if let Some(current) = self._previous() {
                 if current._type == TokenType::SEMICOLON {
                     return;
                 }
             }
-            if let Some(token) = self.peek() {
+            if let Some(token) = self._peek() {
                 match token._type {
                     TokenType::CLASS
                     | TokenType::FUN
@@ -263,7 +356,7 @@ impl Parser {
                     _ => (),
                 }
             }
-            self.advance();
+            self._advance();
         }
     }
 }

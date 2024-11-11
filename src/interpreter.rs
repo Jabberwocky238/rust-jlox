@@ -1,8 +1,7 @@
-use std::cell::Cell;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::gen::*;
+use super::ast::*;
 
 use super::scanner::TokenType;
 use super::scanner::LiteralType;
@@ -40,6 +39,7 @@ impl_expr_visitable! {
     (Unary, unary),
     (Variable, variable),
     (Assign, assign),
+    (Logical, logical),
 }
 
 impl_stmt_visitable! {
@@ -48,6 +48,8 @@ impl_stmt_visitable! {
     (Print, print),
     (Var, var),
     (Block, block),
+    (If, if),
+    (While, while),
 }
 
 pub struct Interpreter{
@@ -62,11 +64,6 @@ impl Interpreter
             environment: RefCell::new(Environment::new()),
         }
     }
-    // commented at chapter 8 Executing statements
-    // pub fn interpret(&self, expr: &Rc<Expr>) -> Result<String, RuntimeError> {
-    //     let value = self.evaluate(expr);
-    //     Ok(stringify(value))
-    // }
     pub fn interpret(&self, stmts: &Vec<Rc<Stmt>>) -> Result<(), RuntimeError> {
         for stmt in stmts.iter() {
             self.execute(stmt)?;
@@ -169,6 +166,20 @@ impl ExprVisitor<LiteralType> for Interpreter {
         self.environment.borrow_mut().assign(&stmt.name.lexeme, value.clone()).unwrap();
         return value;
     }
+    
+    fn visit_logical(&self, stmt: &Logical) -> LiteralType {
+        let left = self.evaluate(&stmt.left);
+        if stmt.operator._type == TokenType::OR {
+            if is_truthy(&left) {
+                return left;
+            }
+        } else {
+            if !is_truthy(&left) {
+                return left;
+            }
+        }
+        return self.evaluate(&stmt.right);
+    }
 }
 
 impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
@@ -199,6 +210,22 @@ impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
         }
 
         self.environment.borrow_mut().exit_scope();
+        Ok(())
+    }
+    
+    fn visit_if(&self, stmt: &If) -> Result<(), RuntimeError> {
+        if is_truthy(&self.evaluate(&stmt.condition)) {
+            self.execute(&stmt.then_branch)?;
+        } else if let Some(ref else_branch) = stmt.else_branch {
+            self.execute(else_branch)?;
+        }
+        Ok(())
+    }
+    
+    fn visit_while(&self, stmt: &While) -> Result<(), RuntimeError> {
+        while is_truthy(&self.evaluate(&stmt.condition)) {
+            self.execute(&stmt.body)?;
+        }
         Ok(())
     }
 }

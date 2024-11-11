@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::gen::*;
+use crate::ast::*;
 
 use crate::impl_expr_visitable;
 use crate::impl_stmt_visitable;
@@ -15,6 +15,7 @@ impl_expr_visitable! {
     (Unary, unary),
     (Variable, variable),
     (Assign, assign),
+    (Logical, logical),
 }
 
 impl_stmt_visitable! {
@@ -23,6 +24,8 @@ impl_stmt_visitable! {
     (Print, print),
     (Var, var),
     (Block, block),
+    (If, if),
+    (While, while),
 }
 
 // impl Visitable<String> for Expr {
@@ -68,6 +71,10 @@ impl ExprVisitor<String> for AstPrinter {
     fn visit_assign(&self, stmt: &Assign) -> String {
         String::from(format!("{} = {}", stmt.name.lexeme, stmt.value.accept(self)))
     }
+    
+    fn visit_logical(&self, stmt: &Logical) -> String {
+        return self.parenthesize(&stmt.operator.lexeme, &[&stmt.left, &stmt.right]);
+    }
 }
 
 impl StmtVisitor<String> for AstPrinter {
@@ -96,6 +103,32 @@ impl StmtVisitor<String> for AstPrinter {
             string_builder.push(stmt);
         });
         string_builder.push("\n}".to_owned());
+        return string_builder.join("");
+    }
+    
+    fn visit_if(&self, stmt: &If) -> String {
+        let mut string_builder: Vec<String> = vec![];
+        string_builder.push("if ".to_owned());
+        string_builder.push(stmt.condition.accept(self));
+        string_builder.push(" ( ".to_owned());
+        string_builder.push(stmt.then_branch.accept(self));
+        string_builder.push(" ) ".to_owned());
+        if let Some(else_branch) = &stmt.else_branch {
+            string_builder.push(" else ( ".to_owned());
+            string_builder.push(else_branch.accept(self));
+            string_builder.push(" ) ".to_owned());
+        }
+        string_builder.push("\n".to_owned());
+        return string_builder.join("");
+    }
+    
+    fn visit_while(&self, stmt: &While) -> String {
+        let mut string_builder: Vec<String> = vec![];
+        string_builder.push("( while ".to_owned());
+        string_builder.push(stmt.condition.accept(self));
+        string_builder.push(" (".to_owned());
+        string_builder.push(stmt.body.accept(self));
+        string_builder.push(")\n".to_owned());
         return string_builder.join("");
     }
 }
@@ -131,9 +164,9 @@ where Self: ExprVisitor<String>
 #[cfg(test)]
 mod tests_4_ast_printer {
     use std::rc::Rc;
-    use crate::gen::*;
+    use crate::ast::*;
     use crate::astprinter::AstPrinter;
-    use crate::gen::Expr;
+    use crate::ast::Expr;
     use crate::scanner::{LiteralType, Token, TokenType};
 
     fn easy_number(num: f64) -> Rc<Expr> {
