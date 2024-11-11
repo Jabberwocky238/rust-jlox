@@ -58,7 +58,7 @@ impl Interpreter
 {
     pub fn new() -> Self {
         Interpreter {
-            environment: Rc::new(Environment::new()),
+            environment: Rc::new(Environment::new(None)),
         }
     }
     // commented at chapter 8 Executing statements
@@ -66,8 +66,8 @@ impl Interpreter
     //     let value = self.evaluate(expr);
     //     Ok(stringify(value))
     // }
-    pub fn interpret(&self, expr: &Vec<Rc<Stmt>>) -> Result<(), RuntimeError> {
-        for stmt in expr.iter() {
+    pub fn interpret(&self, stmts: &Vec<Rc<Stmt>>) -> Result<(), RuntimeError> {
+        for stmt in stmts.iter() {
             self.execute(stmt)?;
         }
         Ok(())
@@ -191,13 +191,12 @@ impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
     }
     
     fn visit_block(&self, stmt: &Block) -> Result<(), RuntimeError> {
-        let new_environment: RefCell<Environment> = Environment::build(self.environment.clone());
-        let old_environment: Environment = self.environment.replace(new_environment.into_inner());
-        println!("new_environment: {}, old_environment: {}, new_encloure: {}", 
-            self.environment.borrow().uid, 
-            old_environment.uid, 
-            self.environment.borrow().enclosing.as_ref().unwrap().borrow().uid
-        );
+        // dbg!(&self.environment);
+
+        let new_environment = Environment::new(Some(self.environment.clone()));
+        let old_environment = self.environment.replace(new_environment.into_inner());
+
+        // dbg!(&self.environment);
             
         for statement in stmt.statements.iter() {
             self.execute(statement)?;
