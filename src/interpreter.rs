@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -50,7 +51,7 @@ impl_stmt_visitable! {
 }
 
 pub struct Interpreter{
-    pub environment: Rc<RefCell<Environment>>,
+    pub environment: RefCell<Environment>,
 }
 
 impl Interpreter 
@@ -58,7 +59,7 @@ impl Interpreter
 {
     pub fn new() -> Self {
         Interpreter {
-            environment: Rc::new(Environment::new(None)),
+            environment: RefCell::new(Environment::new()),
         }
     }
     // commented at chapter 8 Executing statements
@@ -191,17 +192,13 @@ impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
     }
     
     fn visit_block(&self, stmt: &Block) -> Result<(), RuntimeError> {
-        // dbg!(&self.environment);
-
-        let new_environment = Environment::new(Some(self.environment.clone()));
-        let old_environment = self.environment.replace(new_environment.into_inner());
-
-        // dbg!(&self.environment);
+        self.environment.borrow_mut().enter_scope();
             
         for statement in stmt.statements.iter() {
             self.execute(statement)?;
         }
-        self.environment.replace(old_environment);
+
+        self.environment.borrow_mut().exit_scope();
         Ok(())
     }
 }
