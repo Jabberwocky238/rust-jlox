@@ -6,11 +6,6 @@ still in progress at chapter 8: Statements and State
 cargo test -- --test-threads=1
 ```
 
-## for modules
-```bash
-cargo test
-```
-
 # run
 ```bash
 cargo run -- scripts/math1.lox
