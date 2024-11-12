@@ -1,10 +1,9 @@
 use std::{collections::HashMap, vec};
 
-use crate::{errors::RuntimeError, scanner::LiteralType};
+use crate::{errors::RuntimeError, token::LoxValue};
 
-#[derive(Debug)]
 pub struct Environment {
-    pub stack: Vec<HashMap<String, LiteralType>>,
+    pub stack: Vec<HashMap<String, LoxValue>>,
     pub depth: usize,
 }
 
@@ -27,14 +26,14 @@ impl Environment {
         self.depth -= 1;
     }
 
-    pub fn define(&mut self, name: &str, value: LiteralType) {
+    pub fn define(&mut self, name: &str, value: LoxValue) {
         self.stack[self.depth].insert(name.to_string(), value);
     }
 
-    pub fn get(&self, name: &str) -> Result<LiteralType, RuntimeError> {
+    pub fn get(&self, name: &str) -> Result<&LoxValue, RuntimeError> {
         for i in (0..=self.depth).rev() {
             if let Some(value) = self.stack[i].get(name) {
-                return Ok(value.clone());
+                return Ok(value);
             }
         }
         Err(RuntimeError(
@@ -42,7 +41,7 @@ impl Environment {
         ))
     }
 
-    pub fn assign(&mut self, name: &str, value: LiteralType) -> Result<(), RuntimeError> {
+    pub fn assign(&mut self, name: &str, value: LoxValue) -> Result<(), RuntimeError> {
         for i in (0..=self.depth).rev() {
             if self.stack[i].contains_key(name) {
                 self.stack[i].insert(name.to_string(), value);

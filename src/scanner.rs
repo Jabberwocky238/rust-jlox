@@ -1,136 +1,5 @@
-use once_cell::sync::Lazy;
-use std::cmp::Eq;
-use std::collections::HashMap;
-use std::fmt::{Debug, Display};
 use std::string::String;
-use std::sync::Mutex;
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub enum TokenType {
-    // Single-character tokens.
-    LEFTPAREN,  // (
-    RIGHTPAREN, // )
-    LEFTBRACE,  // {
-    RIGHTBRACE, // }
-    COMMA,      // ,
-    DOT,        // .
-    MINUS,      // -
-    PLUS,
-    SEMICOLON,
-    SLASH,
-    STAR,
-
-    // One or two character tokens.
-    BANG, // !
-    BANGEQUAL, // !=
-    EQUAL, // =
-    EQUALEQUAL, // ==
-    GREATER, // >
-    GREATEREQUAL, // >=
-    LESS, // <
-    LESSEQUAL, // <=
-    AND, // and
-    OR, // or
-
-    // Literals.
-    IDENTIFIER, 
-    STRING,
-    NUMBER,
-
-    // Keywords.
-    CLASS,
-    ELSE,
-    FALSE,
-    FUN,
-    FOR,
-    IF,
-    NIL,
-    PRINT,
-    RETURN,
-    SUPER,
-    THIS,
-    TRUE,
-    VAR,
-    WHILE,
-
-    EOF,
-}
-
-static KEYWORDS: Lazy<Mutex<HashMap<String, TokenType>>> = Lazy::new(|| {
-    let m = HashMap::from([
-        ("and".to_string(), TokenType::AND),
-        ("class".to_string(), TokenType::CLASS),
-        ("else".to_string(), TokenType::ELSE),
-        ("false".to_string(), TokenType::FALSE),
-        ("for".to_string(), TokenType::FOR),
-        ("fun".to_string(), TokenType::FUN),
-        ("if".to_string(), TokenType::IF),
-        ("nil".to_string(), TokenType::NIL),
-        ("or".to_string(), TokenType::OR),
-        ("print".to_string(), TokenType::PRINT),
-        ("return".to_string(), TokenType::RETURN),
-        ("super".to_string(), TokenType::SUPER),
-        ("this".to_string(), TokenType::THIS),
-        ("true".to_string(), TokenType::TRUE),
-        ("var".to_string(), TokenType::VAR),
-        ("while".to_string(), TokenType::WHILE),
-    ]);
-    Mutex::new(m)
-});
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum LiteralType {
-    Number(f64),
-    String(String),
-    Boolean(bool),
-    Nil,
-}
-
-impl From<LiteralType> for String {
-    fn from(value: LiteralType) -> String {
-        match value {
-            LiteralType::Number(n) => n.to_string(),
-            LiteralType::String(s) => s,
-            LiteralType::Boolean(b) => b.to_string(),
-            LiteralType::Nil => "nil".to_string(),
-        }
-    }
-}
-
-impl Display for LiteralType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            LiteralType::Number(n) => write!(f, "{}", n),
-            LiteralType::String(s) => write!(f, "{}", s),
-            LiteralType::Boolean(b) => write!(f, "{}", b),
-            LiteralType::Nil => write!(f, "nil"),
-        }
-    }
-}
-
-
-
-
-#[derive(Debug, Clone)]
-pub struct Token {
-    pub _type: TokenType,
-    pub lexeme: String,
-    pub literal: LiteralType,
-    pub line: usize,
-    pub offset: usize,
-}
-
-impl Token {
-    fn build(token_type: TokenType, lexeme: &str, literal: LiteralType, line: usize, offset: usize) -> Token {
-        Token {
-            _type: token_type,
-            lexeme: String::from(lexeme),
-            literal,
-            line,
-            offset,
-        }
-    }
-}
+use crate::token::{LoxLiteralValue, Token, TokenType, KEYWORDS};
 
 pub struct Scanner {
     source: String,
@@ -160,7 +29,7 @@ impl Scanner {
         self.tokens.push(Token::build(
             TokenType::EOF,
             "",
-            LiteralType::Nil,
+            LoxLiteralValue::Nil,
             self.line,
             self.current,
         ));
@@ -242,7 +111,7 @@ impl Scanner {
         return Some(false);
     }
 
-    fn add_token(&mut self, token_type: TokenType, literal: LiteralType) {
+    fn add_token(&mut self, token_type: TokenType, literal: LoxLiteralValue) {
         let sub_string = self.source[self.start..self.current].to_owned();
         self.tokens.push(Token::build(
             token_type,
@@ -262,8 +131,8 @@ impl Scanner {
         }
         let text = self.source[self.start..self.current].to_owned();
         match KEYWORDS.lock().unwrap().get(&text) {
-            Some(t) => self.add_token(t.clone(), LiteralType::String(text)),
-            None => self.add_token(TokenType::IDENTIFIER, LiteralType::String(text)),
+            Some(t) => self.add_token(t.clone(), LoxLiteralValue::String(text)),
+            None => self.add_token(TokenType::IDENTIFIER, LoxLiteralValue::String(text)),
         }
     }
     fn _number(&mut self) {
@@ -289,7 +158,7 @@ impl Scanner {
             }
         }
         let var_number = self.source[self.start..self.current].parse::<f64>().unwrap();
-        self.add_token(TokenType::NUMBER, LiteralType::Number(var_number));
+        self.add_token(TokenType::NUMBER, LoxLiteralValue::Number(var_number));
     }
 
     fn _string(&mut self) {
@@ -311,10 +180,10 @@ impl Scanner {
         self._advance();
         // Trim the surrounding quotes.
         let var_string = self.source[self.start + 1..self.current - 1].to_owned();
-        self.add_token(TokenType::STRING, LiteralType::String(var_string));
+        self.add_token(TokenType::STRING, LoxLiteralValue::String(var_string));
     }
     fn _add_token(&mut self, token_type: TokenType) {
-        self.add_token(token_type, LiteralType::Nil);
+        self.add_token(token_type, LoxLiteralValue::Nil);
     }
     fn _match_char(&mut self, expected: char) -> bool {
         if self.is_at_end() {

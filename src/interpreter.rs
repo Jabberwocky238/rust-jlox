@@ -3,9 +3,9 @@ use std::rc::Rc;
 
 use super::ast::*;
 
-use super::scanner::TokenType;
-use super::scanner::LiteralType;
-use super::scanner::Token;
+use super::token::TokenType;
+use super::token::LoxValue;
+use super::token::Token;
 use super::errors::RuntimeError;
 
 // impl Visitable<LiteralType> for Expr {
@@ -32,7 +32,7 @@ use crate::impl_expr_visitable;
 use crate::impl_stmt_visitable;
 
 impl_expr_visitable! {
-    <LiteralType>, 
+    <LoxValue>, 
     (Binary, binary),
     (Group, grouping),
     (Literal, literal),
@@ -40,6 +40,7 @@ impl_expr_visitable! {
     (Variable, variable),
     (Assign, assign),
     (Logical, logical),
+    (Call, call),
 }
 
 impl_stmt_visitable! {
@@ -50,15 +51,15 @@ impl_stmt_visitable! {
     (Block, block),
     (If, if),
     (While, while),
+    (Function, function),
+    (Return, return),
 }
 
 pub struct Interpreter{
     pub environment: RefCell<Environment>,
 }
 
-impl Interpreter 
-    where Self: ExprVisitor<LiteralType>
-{
+impl Interpreter where Self: ExprVisitor<LoxValue> {
     pub fn new() -> Self {
         Interpreter {
             environment: RefCell::new(Environment::new()),
@@ -73,13 +74,13 @@ impl Interpreter
     fn execute(&self, stmt: &Rc<Stmt>) -> Result<(), RuntimeError> {
         stmt.accept(self)
     }
-    fn evaluate(&self, expr: &Rc<Expr>) -> LiteralType {
+    fn evaluate(&self, expr: &Rc<Expr>) -> LoxValue {
         return expr.accept(self);
     }
 }
 
-impl ExprVisitor<LiteralType> for Interpreter {
-    fn visit_binary(&self, expr: &Binary) -> LiteralType {
+impl ExprVisitor<LoxValue> for Interpreter {
+    fn visit_binary(&self, expr: &Binary) -> LoxValue {
         let left = self.evaluate(&expr.left);
         let right = self.evaluate(&expr.right);
 
@@ -275,60 +276,16 @@ fn is_equal(a: &LiteralType, b: &LiteralType) -> bool {
     return a == b;
 }
 
-fn stringify(object: LiteralType) -> String {
-    if object == LiteralType::Nil {
-        return "nil".to_owned();
-    }
-    if let LiteralType::Number(value) = object {
-        let mut text = value.to_string();
-        if text.ends_with(".0") {
-            text = text[0..text.len() - 2].to_string();
-        }
-        return text;
-    }
-    return object.to_string();
-}
-
-
-// #[cfg(test)]
-// mod tests_4_interpreter {
-//     use crate::interpreter::Interpreter;
-//     use crate::Parser;
-//     use crate::scanner::Scanner;
-
-//     fn easy_test(source: &String) -> String {
-//         let mut scanner = Scanner::build(source);
-//         let tokens = scanner.scan_tokens().clone();
-//         let parser = Parser::new(tokens);
-//         let expression = parser.parse().unwrap();
-//         let interpreter = Interpreter::new();
-//         let output = interpreter.interpret(&expression).unwrap();
-//         output
+// fn stringify(object: LiteralType) -> String {
+//     if object == LiteralType::Nil {
+//         return "nil".to_owned();
 //     }
-
-//     #[test]
-//     fn test1() {
-//         let source: String = "1 >= 99 and 5.2 == 5.2 or 2.2 > 3.3)".to_string();
-//         let output = easy_test(&source);
-//         assert_eq!("false", output.as_str());
+//     if let LiteralType::Number(value) = object {
+//         let mut text = value.to_string();
+//         if text.ends_with(".0") {
+//             text = text[0..text.len() - 2].to_string();
+//         }
+//         return text;
 //     }
-    
-//     #[test]
-//     fn test2() {
-//         let source: String = "1 >= 99 or 5.2 == 5.2 and 2.2 < 3.3".to_string();
-//         let output = easy_test(&source);
-//         assert_eq!("false", output.as_str());
-//     }
-//     #[test]
-//     fn test3() {
-//         let source: String = "1 + 2 * 3 + 4".to_string();
-//         let output = easy_test(&source);
-//         assert_eq!("11", output.as_str());
-//     }
-//     #[test]
-//     fn test4() {
-//         let source: String = "\"hello\" + \"world\"".to_string();
-//         let output = easy_test(&source);
-//         assert_eq!("helloworld", output.as_str());
-//     }
+//     return object.to_string();
 // }

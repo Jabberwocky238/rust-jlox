@@ -5,6 +5,8 @@ mod interpreter;
 mod astprinter;
 mod ast;
 mod environment;
+mod token;
+mod function;
 
 use interpreter::Interpreter;
 use parser::Parser;

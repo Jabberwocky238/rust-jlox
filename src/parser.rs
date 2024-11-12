@@ -4,9 +4,10 @@ use std::vec;
 
 use crate::ast::*;
 
-use crate::scanner::LiteralType;
-use crate::scanner::Token;
-use crate::scanner::TokenType;
+use crate::token::LoxValue;
+use crate::token::LoxLiteralValue;
+use crate::token::Token;
+use crate::token::TokenType;
 
 use crate::errors::ParseError;
 
@@ -16,7 +17,8 @@ pub struct Parser {
 }
 
 fn error(token: Option<&Token>, message: &str) -> ParseError {
-    ParseError(format!("Error {}: {}", token.unwrap().line, message))
+    let token = token.unwrap();
+    ParseError(format!("Error at line {} column {}: {}", token.line, token.offset, message))
 }
 
 type ParseResult<T> = Result<T, ParseError>;
@@ -38,10 +40,35 @@ impl Parser {
     }
 
     fn declaration(&self) -> ParseResult<Rc<Stmt>> {
+        if self._match(&[TokenType::FUN]) {
+            return self.function("function");
+        }
         if self._match(&[TokenType::VAR]) {
             return self.var_declaration();
         }
         self.statement()
+    }
+
+    fn function(&self, kind: &str) -> ParseResult<Rc<Stmt>> {
+        let name = self._consume(&TokenType::IDENTIFIER, &format!("Expect {} name.", kind))?;
+        self._consume(&TokenType::LEFTPAREN, &format!("Expect '(' after {} name.", kind))?;
+        let mut params = vec![];
+        if !self._check(&TokenType::RIGHTPAREN) {
+            loop {
+                if params.len() >= 255 {
+                    return Err(error(self._peek(), "Cannot have more than 255 parameters."));
+                }
+                let t = self._consume(&TokenType::IDENTIFIER, "Expect parameter name.")?;
+                params.push(t.clone());
+                if !self._match(&[TokenType::COMMA]) {
+                    break;
+                }
+            }
+        }
+        self._consume(&TokenType::RIGHTPAREN, "Expect ')' after parameters.")?;
+        self._consume(&TokenType::LEFTBRACE, &format!("Expect '{{' before {} body.", kind))?;
+        let body = self.block()?;
+        return Ok(Function::build(name.clone(), params, body));
     }
 
     fn var_declaration(&self) -> ParseResult<Rc<Stmt>> {
@@ -110,7 +137,7 @@ impl Parser {
         if let Some(condition) = condition {
             body = While::build(condition, body);
         } else {
-            body = While::build(Literal::build(LiteralType::Boolean(true)), body);
+            body = While::build(Literal::build(LoxLiteralValue::Bool(true)), body);
         }
         if let Some(initializer) = initializer {
             body = Block::build(vec![initializer, body]);
@@ -252,18 +279,47 @@ impl Parser {
             let right = self.unary().unwrap();
             return Ok(Unary::build(operator.clone(), right));
         }
-        return self.primary();
+        return self.call();
+    }
+
+    fn call(&self) -> ParseResult<Rc<Expr>> {
+        let mut expr = self.primary().unwrap();
+        loop {
+            if self._match(&[TokenType::LEFTPAREN]) {
+                expr = self.finish_call(expr).unwrap();
+            } else {
+                break;
+            }
+        }
+        return Ok(expr);
+    }
+
+    fn finish_call(&self, callee: Rc<Expr>) -> ParseResult<Rc<Expr>> {
+        let mut arguments = vec![];
+        if !self._check(&TokenType::RIGHTPAREN) {
+            loop {
+                if arguments.len() >= 255 {
+                    return Err(error(self._peek(), "Cannot have more than 255 arguments."));
+                }
+                arguments.push(self.expression().unwrap());
+                if !self._match(&[TokenType::COMMA]) {
+                    break;
+                }
+            }
+        }
+        let paren = self._consume(&TokenType::RIGHTPAREN, "Expect ')' after arguments.")?;
+        return Ok(Call::build(callee, paren.clone(), arguments));
     }
 
     fn primary(&self) -> ParseResult<Rc<Expr>> {
         if self._match(&[TokenType::FALSE]) {
-            return Ok(Literal::build(LiteralType::Boolean(false)));
+            return Ok(Literal::build(LoxLiteralValue::Bool(false)));
         }
         if self._match(&[TokenType::TRUE]) {
-            return Ok(Literal::build(LiteralType::Boolean(true)));
+            return Ok(Literal::build(LoxLiteralValue::Bool(true)));
         }
         if self._match(&[TokenType::NIL]) {
-            return Ok(Literal::build(LiteralType::Nil));
+            return Ok(Literal::build(LoxLiteralValue::Nil));
         }
         if self._match(&[TokenType::NUMBER, TokenType::STRING]) {
             if let Some(token) = self._previous() {
