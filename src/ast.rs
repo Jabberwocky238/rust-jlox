@@ -11,10 +11,34 @@ macro_rules! impl_build {
                 $( pub $param: $t, )*
             }
             impl $token {
-                pub fn build($( $param: $t, )*) -> Rc<$namespace> {
+                // pub fn build($( $param: $t, )*) -> Rc<$namespace> {
+                //     let this = Self { $( $param , )* };
+                //     let warp = $namespace::[< $token >](this);
+                //     Rc::new(warp)
+                // }
+                pub fn build($( $param: $t, )*) -> $namespace {
                     let this = Self { $( $param , )* };
                     let warp = $namespace::[< $token >](this);
-                    Rc::new(warp)
+                    warp
+                }
+            }
+        }
+    };
+    ($namespace:ty, $token:ty, $lifetime:lifetime, [ $($param:ident: $t:ty), * ] ) => {
+        paste! {
+            pub struct $token<$lifetime> {
+                $( pub $param: $t, )*
+            }
+            impl<$lifetime> $token<$lifetime> {
+                // pub fn build($( $param: $t, )*) -> Rc<$namespace> {
+                //     let this = Self { $( $param , )* };
+                //     let warp = $namespace::[< $token >](this);
+                //     Rc::new(warp)
+                // }
+                pub fn build($( $param: $t, )*) -> $namespace {
+                    let this = Self { $( $param , )* };
+                    let warp = $namespace::[< $token >](this);
+                    warp
                 }
             }
         }
@@ -35,10 +59,10 @@ macro_rules! impl_build {
 //     }
 // }
 
-impl_build!( Expr, Binary, [ left: Rc<Expr>, operator: Token, right: Rc<Expr> ] );
+impl_build!( Expr::<'e>, Binary, 'e, [ left: &'e Expr<'e>, operator: Token, right: &'e Expr<'e> ] );
 impl_build!( Expr, Group, [ expression: Rc<Expr> ] );
 impl_build!( Expr, Unary, [ operator: Token, right: Rc<Expr> ] );
-impl_build!( Expr, Literal, [ value: LoxLiteral ] );
+impl_build!( Expr, Literal, 'expr, [ value: &'expr LoxLiteral ] );
 impl_build!( Expr, Variable, [ name: Token ] );
 impl_build!( Expr, Assign, [ name: Token, value: Rc<Expr> ] );
 impl_build!( Expr, Logical, [ left: Rc<Expr>, operator: Token, right: Rc<Expr> ] );
@@ -53,8 +77,8 @@ impl_build!( Stmt, While, [ condition: Rc<Expr>, body: Rc<Stmt> ] );
 impl_build!( Stmt, Function, [ name: Token, params: Vec<Token>, body: Rc<Stmt> ] );
 impl_build!( Stmt, Return, [ keyword: Token, value: Option<Rc<Expr>> ] );
 
-pub enum Expr {
-    Binary(Binary),
+pub enum Expr<'a> {
+    Binary(Binary<'a>),
     Group(Group),
     Literal(Literal),
     Unary(Unary),

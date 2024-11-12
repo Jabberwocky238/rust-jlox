@@ -10,14 +10,14 @@ use crate::token::TokenType;
 
 use crate::errors::ParseError;
 
-pub struct Parser {
+pub struct Parser<'par> {
     current: Cell<usize>,
     tokens: Vec<Token>,
 }
 
 type ParseResult<T> = Result<T, ParseError>;
 
-impl Parser {
+impl<'par> Parser<'par> {
     pub fn new(tokens: Vec<Token>) -> Self {
         Self {
             current: Cell::new(0),
@@ -305,24 +305,24 @@ impl Parser {
         return Ok(Call::build(callee, paren.clone(), arguments));
     }
 
-    fn primary(&self) -> ParseResult<Rc<Expr>> {
+    fn primary(&self) -> ParseResult<Expr> {
         if self._match(&[TokenType::FALSE]) {
-            return Ok(Literal::build(LoxLiteral::Bool(false)));
+            return Ok(Literal::build(&LoxLiteral::Bool(false)));
         }
         if self._match(&[TokenType::TRUE]) {
-            return Ok(Literal::build(LoxLiteral::Bool(true)));
+            return Ok(Literal::build(&LoxLiteral::Bool(true)));
         }
         if self._match(&[TokenType::NIL]) {
-            return Ok(Literal::build(LoxLiteral::Nil));
+            return Ok(Literal::build(&LoxLiteral::Nil));
         }
         if self._match(&[TokenType::NUMBER, TokenType::STRING]) {
             if let Some(token) = self._previous() {
-                return Ok(Literal::build(token.literal.clone()));
+                return Ok(Literal::build(&token.literal));
             }
         }
         if self._match(&[TokenType::IDENTIFIER]) {
             if let Some(token) = self._previous() {
-                return Ok(Variable::build(token.clone()));
+                return Ok(Variable::build(token));
             }
         }
         if self._match(&[TokenType::LEFTPAREN]) {
@@ -410,35 +410,3 @@ impl Parser {
         }
     }
 }
-
-// #[cfg(test)]
-// mod tests_4_parser {
-//     use crate::astprinter::AstPrinter;
-//     use crate::parser::Parser;
-//     use crate::scanner::Scanner;
-
-//     fn easy_test(source: String) -> String {
-//         let mut scanner = Scanner::build(&source);
-//         let tokens = scanner.scan_tokens().clone();
-//         let parser = Parser::new(tokens);
-//         let expression = parser.parse().unwrap();
-//         let ast_parser = AstPrinter::new();
-//         ast_parser.print(&expression)
-//     }
-
-//     #[test]
-//     fn test1() {
-//         let source: String = "(1 + 2) * (4 - 3);".to_string();
-//         let output = easy_test(source);
-
-//         assert_eq!("(* (group (+ 1 2)) (group (- 4 3)))", output.as_str());
-//     }
-
-//     #[test]
-//     fn test2() {
-//         let source: String = "1 >= 99 + 5.2 == 2.2 > 3.3;".to_string();
-//         let output = easy_test(source);
-
-//         assert_eq!("(== (>= 1 (+ 99 5.2)) (> 2.2 3.3))", output.as_str());
-//     }
-// }

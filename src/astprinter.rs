@@ -16,6 +16,7 @@ impl_expr_visitable! {
     (Variable, variable),
     (Assign, assign),
     (Logical, logical),
+    (Call, call),
 }
 
 impl_stmt_visitable! {
@@ -26,26 +27,9 @@ impl_stmt_visitable! {
     (Block, block),
     (If, if),
     (While, while),
+    (Function, function),
+    (Return, return),
 }
-
-// impl Visitable<String> for Expr {
-//     fn accept(&self, visitor: &dyn Visitor<String>) -> String {
-//         match self {
-//             Expr::Binary(value) => {
-//                 visitor.visit_binary_expr(value)
-//             }
-//             Expr::Group(value) => {
-//                 visitor.visit_grouping_expr(value)
-//             }
-//             Expr::Literal(value) => {
-//                 visitor.visit_literal_expr(value)
-//             }
-//             Expr::Unary(value) => {
-//                 visitor.visit_unary_expr(value)
-//             },
-//         }
-//     }
-// }
 
 impl ExprVisitor<String> for AstPrinter {
     fn visit_binary(&self, expr: &Binary) -> String {
@@ -74,6 +58,10 @@ impl ExprVisitor<String> for AstPrinter {
     
     fn visit_logical(&self, stmt: &Logical) -> String {
         return self.parenthesize(&stmt.operator.lexeme, &[&stmt.left, &stmt.right]);
+    }
+    
+    fn visit_call(&self, stmt: &Call) -> String {
+        todo!()
     }
 }
 
@@ -131,6 +119,14 @@ impl StmtVisitor<String> for AstPrinter {
         string_builder.push(")\n".to_owned());
         return string_builder.join("");
     }
+    
+    fn visit_function(&self, stmt: &Function) -> String {
+        todo!()
+    }
+    
+    fn visit_return(&self, stmt: &Return) -> String {
+        todo!()
+    }
 }
 
 impl AstPrinter 
@@ -167,7 +163,6 @@ mod tests_4_ast_printer {
     use crate::ast::*;
     use crate::astprinter::AstPrinter;
     use crate::ast::Expr;
-    use crate::scanner::{LiteralType, Token, TokenType};
 
     fn easy_number(num: f64) -> Rc<Expr> {
         Literal::build(LiteralType::Number(num))

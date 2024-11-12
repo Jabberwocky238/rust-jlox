@@ -3,10 +3,15 @@ use std::rc::Rc;
 
 use super::ast::*;
 
+use crate::environment::Environment;
+use crate::function::builtin_function_clock;
+use crate::function::LoxFunction;
+
 use super::token::LoxLiteral;
-use super::token::TokenType;
 use super::token::LoxValue;
 use super::token::Token;
+use super::token::TokenType;
+
 use super::errors::RuntimeError;
 
 // impl Visitable<LiteralType> for Expr {
@@ -28,12 +33,12 @@ use super::errors::RuntimeError;
 //     }
 // }
 
-use crate::environment::Environment;
 use crate::impl_expr_visitable;
 use crate::impl_stmt_visitable;
+use crate::op_to_tt;
 
 impl_expr_visitable! {
-    <LoxValue>, 
+    <LoxValue>,
     (Binary, binary),
     (Group, grouping),
     (Literal, literal),
@@ -46,7 +51,7 @@ impl_expr_visitable! {
 
 type RuntimeResult = Result<(), RuntimeError>;
 impl_stmt_visitable! {
-    <RuntimeResult>, 
+    <RuntimeResult>,
     (Expression, expression),
     (Print, print),
     (Var, var),
@@ -57,14 +62,19 @@ impl_stmt_visitable! {
     (Return, return),
 }
 
-pub struct Interpreter{
+pub struct Interpreter {
     pub environment: RefCell<Environment>,
 }
 
-impl Interpreter where Self: ExprVisitor<LoxValue> {
+impl Interpreter
+where
+    Self: ExprVisitor<LoxValue>,
+{
     pub fn new() -> Self {
+        let mut env = Environment::new();
+        env.define("clock", builtin_function_clock());
         Interpreter {
-            environment: RefCell::new(Environment::new()),
+            environment: RefCell::new(env),
         }
     }
     pub fn interpret(&self, stmts: &Vec<Rc<Stmt>>) -> RuntimeResult {
@@ -89,46 +99,56 @@ impl ExprVisitor<LoxValue> for Interpreter {
         match expr.operator._type {
             TokenType::GREATER => {
                 let (left, right) = check_number_operands(&expr.operator, &left, &right).unwrap();
-                return LiteralType::Boolean(left > right);
+                return LoxValue::Literal(LoxLiteral::Bool(left > right));
             }
             TokenType::GREATEREQUAL => {
                 let (left, right) = check_number_operands(&expr.operator, &left, &right).unwrap();
-                return LiteralType::Boolean(left >= right);
+                return LoxValue::Literal(LoxLiteral::Bool(left >= right));
             }
             TokenType::LESS => {
                 let (left, right) = check_number_operands(&expr.operator, &left, &right).unwrap();
-                return LiteralType::Boolean(left < right);
+                return LoxValue::Literal(LoxLiteral::Bool(left < right));
             }
             TokenType::LESSEQUAL => {
                 let (left, right) = check_number_operands(&expr.operator, &left, &right).unwrap();
-                return LiteralType::Boolean(left <= right);
+                return LoxValue::Literal(LoxLiteral::Bool(left <= right));
             }
             TokenType::BANGEQUAL => {
-                return LiteralType::Boolean(!is_equal(&left, &right));
+                return LoxValue::Literal(LoxLiteral::Bool(!is_equal(&left, &right)));
             }
             TokenType::EQUALEQUAL => {
-                return LiteralType::Boolean(is_equal(&left, &right));
+                return LoxValue::Literal(LoxLiteral::Bool(is_equal(&left, &right)));
             }
             TokenType::MINUS => {
                 let (left, right) = check_number_operands(&expr.operator, &left, &right).unwrap();
-                return LiteralType::Number(left - right);
+                return LoxValue::Literal(LoxLiteral::Number(left - right));
             }
             TokenType::PLUS => {
-                if let (LiteralType::Number(left), LiteralType::Number(right)) = (&left, &right) {
-                    return LiteralType::Number(*left + *right);
+                if let (
+                    LoxValue::Literal(LoxLiteral::Number(left)),
+                    LoxValue::Literal(LoxLiteral::Number(right)),
+                ) = (&left, &right)
+                {
+                    return LoxValue::Literal(LoxLiteral::Number(left + right));
                 }
-                if let (LiteralType::String(left), LiteralType::String(right)) = (&left, &right) {
-                    return LiteralType::String(left.to_string() + &right.to_string());
+                if let (
+                    LoxValue::Literal(LoxLiteral::String(left)),
+                    LoxValue::Literal(LoxLiteral::String(right)),
+                ) = (&left, &right)
+                {
+                    return LoxValue::Literal(LoxLiteral::String(
+                        left.to_string() + &right.to_string(),
+                    ));
                 }
                 panic!("Operands must be two numbers or two strings.");
             }
             TokenType::SLASH => {
                 let (left, right) = check_number_operands(&expr.operator, &left, &right).unwrap();
-                return LiteralType::Number(left / right);
+                return LoxValue::Literal(LoxLiteral::Number(left / right));
             }
             TokenType::STAR => {
                 let (left, right) = check_number_operands(&expr.operator, &left, &right).unwrap();
-                return LiteralType::Number(left * right);
+                return LoxValue::Literal(LoxLiteral::Number(left * right));
             }
             _ => {
                 panic!("Unknown operator.");
@@ -140,37 +160,45 @@ impl ExprVisitor<LoxValue> for Interpreter {
         return self.evaluate(&expr.expression);
     }
     fn visit_literal(&self, expr: &Literal) -> LoxValue {
-        return expr.value.clone();
+        return LoxValue::Literal(expr.value.clone());
     }
     fn visit_unary(&self, expr: &Unary) -> LoxValue {
         let right = self.evaluate(&expr.right);
         match expr.operator._type {
             TokenType::BANG => {
                 let result = !is_truthy(&right);
-                return LiteralType::Boolean(result);
+                return LoxValue::Literal(LoxLiteral::Bool(result));
             }
             TokenType::MINUS => {
                 let right = check_number_operand(&expr.operator, &right).unwrap();
-                return LiteralType::Number(-right);
+                return LoxValue::Literal(LoxLiteral::Number(-right));
             }
             _ => {
                 panic!("Unknown operator.");
             }
-        } 
+        }
         // Unreachable
     }
-    
-    fn visit_variable(&self, expr: &Variable) -> LiteralType {
-        return self.environment.borrow().get(&expr.name.lexeme).unwrap();
+
+    fn visit_variable(&self, expr: &Variable) -> LoxValue {
+        return self
+            .environment
+            .borrow()
+            .get(&expr.name.lexeme)
+            .unwrap()
+            .clone();
     }
-    
-    fn visit_assign(&self, stmt: &Assign) -> LiteralType {
+
+    fn visit_assign(&self, stmt: &Assign) -> LoxValue {
         let value = self.evaluate(&stmt.value);
-        self.environment.borrow_mut().assign(&stmt.name.lexeme, value.clone()).unwrap();
+        self.environment
+            .borrow_mut()
+            .assign(&stmt.name.lexeme, value.clone())
+            .unwrap();
         return value;
     }
-    
-    fn visit_logical(&self, stmt: &Logical) -> LiteralType {
+
+    fn visit_logical(&self, stmt: &Logical) -> LoxValue {
         let left = self.evaluate(&stmt.left);
         if stmt.operator._type == TokenType::OR {
             if is_truthy(&left) {
@@ -183,9 +211,17 @@ impl ExprVisitor<LoxValue> for Interpreter {
         }
         return self.evaluate(&stmt.right);
     }
-    
+
     fn visit_call(&self, stmt: &Call) -> LoxValue {
-        todo!()
+        let callee = self.evaluate(&stmt.callee);
+        let mut arguments = Vec::new();
+        for argument in stmt.arguments.iter() {
+            arguments.push(self.evaluate(argument));
+        }
+        if let LoxValue::Callable(callee) = callee {
+            return callee.call(self, arguments);
+        }
+        panic!("Can only call functions and classes.");
     }
 }
 
@@ -205,13 +241,15 @@ impl StmtVisitor<RuntimeResult> for Interpreter {
         } else {
             LoxValue::Literal(LoxLiteral::Nil)
         };
-        self.environment.borrow_mut().define(&stmt.name.lexeme, value);
+        self.environment
+            .borrow_mut()
+            .define(&stmt.name.lexeme, value);
         Ok(())
     }
-    
+
     fn visit_block(&self, stmt: &Block) -> RuntimeResult {
-        self.environment.borrow_mut().enter_scope();
-            
+        self.environment.borrow_mut().enter_scope(false);
+
         for statement in stmt.statements.iter() {
             self.execute(statement)?;
         }
@@ -219,7 +257,7 @@ impl StmtVisitor<RuntimeResult> for Interpreter {
         self.environment.borrow_mut().exit_scope();
         Ok(())
     }
-    
+
     fn visit_if(&self, stmt: &If) -> RuntimeResult {
         if is_truthy(&self.evaluate(&stmt.condition)) {
             self.execute(&stmt.then_branch)?;
@@ -228,18 +266,23 @@ impl StmtVisitor<RuntimeResult> for Interpreter {
         }
         Ok(())
     }
-    
+
     fn visit_while(&self, stmt: &While) -> RuntimeResult {
         while is_truthy(&self.evaluate(&stmt.condition)) {
             self.execute(&stmt.body)?;
         }
         Ok(())
     }
-    
+
     fn visit_function(&self, stmt: &Function) -> RuntimeResult {
-        todo!()
+        let function = LoxFunction::new(stmt);
+        let function = LoxValue::Callable(Rc::new(function));
+        self.environment
+            .borrow_mut()
+            .define(&stmt.name.lexeme, function);
+        Ok(())
     }
-    
+
     fn visit_return(&self, stmt: &Return) -> RuntimeResult {
         todo!()
     }
@@ -248,26 +291,30 @@ impl StmtVisitor<RuntimeResult> for Interpreter {
 // ----------------------------------------------------------------
 // ----------------------------------------------------------------
 
-fn check_number_operands(operator: &Token, left: &LiteralType, right: &LiteralType) -> Result<(f64, f64), RuntimeError> {
-    if let &LiteralType::Number(l) = left {
-        if let &LiteralType::Number(r) = right {
-            return Ok((l, r));
-        }
+fn check_number_operands(
+    operator: &Token,
+    left: &LoxValue,
+    right: &LoxValue,
+) -> Result<(f64, f64), RuntimeError> {
+    if let (LoxValue::Literal(LoxLiteral::Number(l)), LoxValue::Literal(LoxLiteral::Number(r))) =
+        (left, right)
+    {
+        return Ok((*l, *r));
     }
     let err = format!("Operands must be numbers. Got {}, {}", left, right);
     Err(RuntimeError::new(operator, &err))
 }
 
-fn check_number_operand(operator: &Token, operand: &LiteralType) -> Result<f64, RuntimeError> {
-    if let &LiteralType::Number(v) = operand {
+fn check_number_operand(operator: &Token, operand: &LoxValue) -> Result<f64, RuntimeError> {
+    if let &LoxValue::Literal(LoxLiteral::Number(v)) = operand {
         return Ok(v);
     }
     let err = format!("Operand must be a number. Got {}", operand);
     Err(RuntimeError::new(operator, &err))
 }
 
-fn is_truthy(object: &LiteralType) -> bool {
-    if object == &LiteralType::Nil {
+fn is_truthy(object: &LoxValue) -> bool {
+    if object == LoxValue::Literal(LoxLiteral::Nil) {
         return false;
     }
     if let &LiteralType::Boolean(value) = object {

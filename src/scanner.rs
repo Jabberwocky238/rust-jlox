@@ -19,7 +19,7 @@ impl Scanner {
             line: 1,
         }
     }
-    pub fn scan_tokens(&mut self) -> &Vec<Token> {
+    pub fn scan_tokens(mut self) -> Vec<Token> {
         // self.source.split(" ").collect::<Vec<&str>>()
         while !self.is_at_end() {
             // We are at the beginning of the next lexeme.
@@ -33,7 +33,7 @@ impl Scanner {
             self.line,
             self.current,
         ));
-        return &self.tokens;
+        return self.tokens;
     }
     fn is_at_end(&self) -> bool {
         self.current >= self.source.len()
@@ -225,8 +225,8 @@ mod tests_4_scanner {
     #[test]
     fn test1() {
         let source: String = "(1 + 2) * (4 - 3);".to_string();
-        let mut scanner = Scanner::build(&source);
-        let tokens = scanner.scan_tokens().clone();
+        let scanner = Scanner::build(&source);
+        let tokens = scanner.scan_tokens();
 
         assert_eq!(tokens.len(), 13);
         assert_eq!(tokens[0]._type, TokenType::LEFTPAREN);
@@ -247,8 +247,8 @@ mod tests_4_scanner {
     #[test]
     fn test2() {
         let source: String = "1 >= 2 and 4 < 3;".to_string();
-        let mut scanner = Scanner::build(&source);
-        let tokens = scanner.scan_tokens().clone();
+        let scanner = Scanner::build(&source);
+        let tokens = scanner.scan_tokens();
 
         assert_eq!(tokens.len(), 9);
         assert_eq!(tokens[0]._type, TokenType::NUMBER);
@@ -265,8 +265,8 @@ mod tests_4_scanner {
     #[test]
     fn test3() {
         let source: String = "1 >= 99 + 5.2 or 2.2 < 3.3;".to_string();
-        let mut scanner = Scanner::build(&source);
-        let tokens = scanner.scan_tokens().clone();
+        let scanner = Scanner::build(&source);
+        let tokens = scanner.scan_tokens();
 
         assert_eq!(tokens.len(), 11);
         assert_eq!(tokens[0]._type, TokenType::NUMBER);

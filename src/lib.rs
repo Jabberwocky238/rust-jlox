@@ -2,7 +2,7 @@ mod errors;
 mod scanner;
 mod parser;
 mod interpreter;
-mod astprinter;
+// mod astprinter;
 mod ast;
 mod environment;
 mod token;
@@ -10,7 +10,7 @@ mod function;
 
 use interpreter::Interpreter;
 use parser::Parser;
-use astprinter::AstPrinter;
+// use astprinter::AstPrinter;
 use scanner::Scanner;
 
 pub struct Lox {
@@ -47,8 +47,10 @@ impl Lox {
     fn run(&mut self, source: &String) {
         // println!("Running: {}", source);
         
-        let mut scanner = Scanner::build(source);
-        let tokens = scanner.scan_tokens().clone();
+        let scanner = Scanner::build(source);
+        let tokens = scanner.scan_tokens();
+        // scanner dropped here
+
         // For now, just print the tokens.
         // for token in tokens.iter() {
         //     println!("{:?}", token);
@@ -63,10 +65,10 @@ impl Lox {
                 panic!("{}", e.0);
             },
         };
-        let ast_printer = AstPrinter::new();
-        for stmt in stmts.iter() {
-            println!("{}", ast_printer.print_stmt(stmt));
-        }
+        // let ast_printer = AstPrinter::new();
+        // for stmt in stmts.iter() {
+        //     println!("{}", ast_printer.print_stmt(stmt));
+        // }
         
         match self.interpreter.interpret(&stmts) {
             Ok(_) => {},

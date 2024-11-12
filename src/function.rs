@@ -1,54 +1,64 @@
-use crate::ast::Function;
-use crate::environment::Environment;
+use std::rc::Rc;
+
+use crate::ast::{Function, StmtVisitable};
 use crate::interpreter::Interpreter;
 use crate::token::{LoxLiteral, LoxValue};
 
 pub trait LoxCallable: std::fmt::Display {
     fn arity(&self) -> usize;
-    fn call(&self, interpreter: &mut Interpreter, arguments: Vec<LoxValue>) -> LoxValue;
+    fn call(&self, interpreter: &Interpreter, arguments: Vec<LoxValue>) -> LoxValue;
 }
 
-pub struct LoxFunction {
-    declaration: Function,
+pub struct LoxFunction<'a> {
+    declaration: &'a Function,
 }
 
-impl LoxFunction {
-    pub fn new(_de: Function) -> Self {
+impl<'a> LoxFunction<'a> {
+    pub fn new(_declaration: &'a Function) -> Self {
         LoxFunction {
-            declaration: _de,
+            declaration: _declaration,
         }
     }
 }
 
-impl LoxCallable for LoxFunction {
+impl<'a> LoxCallable for LoxFunction<'a> {
     fn arity(&self) -> usize {
         0
     }
-    fn call(&self, _interpreter: &mut Interpreter, _arguments: Vec<LoxValue>) -> LoxValue {
-        let environment = Environment::new();
-        _interpreter.environment.borrow().push(environment);
-        for (param, arg) in self.declaration.params.iter().zip(_arguments.iter()) {
-            _interpreter.environment.borrow().peek().define(param.lexeme.clone(), arg.clone());
+    fn call(&self, _interpreter: &Interpreter, _arguments: Vec<LoxValue>) -> LoxValue {
+        _interpreter.environment.borrow_mut().enter_scope(false);
+
+        let mut _arguments = _arguments;
+        let drain_arg = _arguments.drain(..).into_iter();
+        for (param, arg) in self.declaration.params.iter().zip(drain_arg) {
+            _interpreter.environment.borrow_mut().define(&param.lexeme, arg);
         }
-        let _ = _interpreter.execute_block(&self.declaration.body, _interpreter.environment.borrow().peek());
-        _interpreter.environment.borrow().pop();
+        self.declaration.body.as_ref().accept(_interpreter);
+
+        _interpreter.environment.borrow_mut().exit_scope();
         LoxValue::Literal(LoxLiteral::Nil)
     }
 }
 
-impl std::fmt::Display for LoxFunction {
+impl<'a> std::fmt::Display for LoxFunction<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "<fn {}>", self.declaration.name.lexeme)
     }
 }
 
-pub struct BuiltinFunctioClock;
+// --------------------------------------------
+
+struct BuiltinFunctioClock;
+
+pub fn builtin_function_clock() -> LoxValue {
+    LoxValue::Callable(Rc::new(BuiltinFunctioClock))
+}
 
 impl LoxCallable for BuiltinFunctioClock {
     fn arity(&self) -> usize {
         0
     }
-    fn call(&self, _interpreter: &mut Interpreter, _arguments: Vec<LoxValue>) -> LoxValue {
+    fn call(&self, _interpreter: &Interpreter, _arguments: Vec<LoxValue>) -> LoxValue {
         let time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
@@ -62,3 +72,8 @@ impl std::fmt::Display for BuiltinFunctioClock {
         write!(f, "<native fn clock>")
     }
 }
+
+// --------------------------------------------
+
+
+

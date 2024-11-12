@@ -2,6 +2,7 @@ use once_cell::sync::Lazy;
 use std::cmp::Eq;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::rc::Rc;
 use std::string::String;
 use std::sync::Mutex;
 
@@ -58,6 +59,22 @@ pub enum TokenType {
     EOF,
 }
 
+#[macro_export]
+macro_rules! op_to_tt {
+    [+] => { TokenType::PLUS };
+    [-] => { TokenType::MINUS };
+    [*] => { TokenType::STAR };
+    [/] => { TokenType::SLASH };
+    [!] => { TokenType::BANG };
+    [=] => { TokenType::EQUAL };
+    [>] => { TokenType::GREATER };
+    [<] => { TokenType::LESS };
+    [>=] => { TokenType::GREATEREQUAL };
+    [<=] => { TokenType::LESSEQUAL };
+    [!=] => { TokenType::BANGEQUAL };
+    [==] => { TokenType::EQUALEQUAL };
+}
+
 pub static KEYWORDS: Lazy<Mutex<HashMap<String, TokenType>>> = Lazy::new(|| {
     let m = HashMap::from([
         ("and".to_string(), TokenType::AND),
@@ -99,9 +116,10 @@ impl std::fmt::Display for LoxLiteral {
     }
 }
 
+#[derive(Clone)]
 pub enum LoxValue {
     Literal(LoxLiteral),
-    Callable(Box<dyn LoxCallable>),
+    Callable(Rc<dyn LoxCallable>),
 }
 
 impl std::fmt::Display for LoxValue {
