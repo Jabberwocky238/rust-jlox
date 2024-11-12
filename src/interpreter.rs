@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 use super::ast::*;
 
+use super::token::LoxLiteral;
 use super::token::TokenType;
 use super::token::LoxValue;
 use super::token::Token;
@@ -43,8 +44,9 @@ impl_expr_visitable! {
     (Call, call),
 }
 
+type RuntimeResult = Result<(), RuntimeError>;
 impl_stmt_visitable! {
-    <Result<(), RuntimeError>>, 
+    <RuntimeResult>, 
     (Expression, expression),
     (Print, print),
     (Var, var),
@@ -65,13 +67,13 @@ impl Interpreter where Self: ExprVisitor<LoxValue> {
             environment: RefCell::new(Environment::new()),
         }
     }
-    pub fn interpret(&self, stmts: &Vec<Rc<Stmt>>) -> Result<(), RuntimeError> {
+    pub fn interpret(&self, stmts: &Vec<Rc<Stmt>>) -> RuntimeResult {
         for stmt in stmts.iter() {
             self.execute(stmt)?;
         }
         Ok(())
     }
-    fn execute(&self, stmt: &Rc<Stmt>) -> Result<(), RuntimeError> {
+    fn execute(&self, stmt: &Rc<Stmt>) -> RuntimeResult {
         stmt.accept(self)
     }
     fn evaluate(&self, expr: &Rc<Expr>) -> LoxValue {
@@ -134,13 +136,13 @@ impl ExprVisitor<LoxValue> for Interpreter {
         }
         // Unreachable.
     }
-    fn visit_grouping(&self, expr: &Group) -> LiteralType {
+    fn visit_grouping(&self, expr: &Group) -> LoxValue {
         return self.evaluate(&expr.expression);
     }
-    fn visit_literal(&self, expr: &Literal) -> LiteralType {
+    fn visit_literal(&self, expr: &Literal) -> LoxValue {
         return expr.value.clone();
     }
-    fn visit_unary(&self, expr: &Unary) -> LiteralType {
+    fn visit_unary(&self, expr: &Unary) -> LoxValue {
         let right = self.evaluate(&expr.right);
         match expr.operator._type {
             TokenType::BANG => {
@@ -181,29 +183,33 @@ impl ExprVisitor<LoxValue> for Interpreter {
         }
         return self.evaluate(&stmt.right);
     }
+    
+    fn visit_call(&self, stmt: &Call) -> LoxValue {
+        todo!()
+    }
 }
 
-impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
-    fn visit_expression(&self, stmt: &Expression) -> Result<(), RuntimeError> {
+impl StmtVisitor<RuntimeResult> for Interpreter {
+    fn visit_expression(&self, stmt: &Expression) -> RuntimeResult {
         let _ = self.evaluate(&stmt.expression);
         Ok(())
     }
-    fn visit_print(&self, stmt: &Print) -> Result<(), RuntimeError> {
+    fn visit_print(&self, stmt: &Print) -> RuntimeResult {
         let value = self.evaluate(&stmt.expression);
-        println!("{}", stringify(value));
+        println!("{}", value);
         Ok(())
     }
-    fn visit_var(&self, stmt: &Var) -> Result<(), RuntimeError> {
+    fn visit_var(&self, stmt: &Var) -> RuntimeResult {
         let value = if let Some(ref initializer) = stmt.initializer {
             self.evaluate(initializer)
         } else {
-            LiteralType::Nil
+            LoxValue::Literal(LoxLiteral::Nil)
         };
         self.environment.borrow_mut().define(&stmt.name.lexeme, value);
         Ok(())
     }
     
-    fn visit_block(&self, stmt: &Block) -> Result<(), RuntimeError> {
+    fn visit_block(&self, stmt: &Block) -> RuntimeResult {
         self.environment.borrow_mut().enter_scope();
             
         for statement in stmt.statements.iter() {
@@ -214,7 +220,7 @@ impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
         Ok(())
     }
     
-    fn visit_if(&self, stmt: &If) -> Result<(), RuntimeError> {
+    fn visit_if(&self, stmt: &If) -> RuntimeResult {
         if is_truthy(&self.evaluate(&stmt.condition)) {
             self.execute(&stmt.then_branch)?;
         } else if let Some(ref else_branch) = stmt.else_branch {
@@ -223,20 +229,24 @@ impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
         Ok(())
     }
     
-    fn visit_while(&self, stmt: &While) -> Result<(), RuntimeError> {
+    fn visit_while(&self, stmt: &While) -> RuntimeResult {
         while is_truthy(&self.evaluate(&stmt.condition)) {
             self.execute(&stmt.body)?;
         }
         Ok(())
     }
+    
+    fn visit_function(&self, stmt: &Function) -> RuntimeResult {
+        todo!()
+    }
+    
+    fn visit_return(&self, stmt: &Return) -> RuntimeResult {
+        todo!()
+    }
 }
 
 // ----------------------------------------------------------------
 // ----------------------------------------------------------------
-
-fn error(token: &Token, message: &String) -> RuntimeError {
-    return RuntimeError(format!("Error {}: {}", token.line, message));
-}
 
 fn check_number_operands(operator: &Token, left: &LiteralType, right: &LiteralType) -> Result<(f64, f64), RuntimeError> {
     if let &LiteralType::Number(l) = left {
@@ -245,7 +255,7 @@ fn check_number_operands(operator: &Token, left: &LiteralType, right: &LiteralTy
         }
     }
     let err = format!("Operands must be numbers. Got {}, {}", left, right);
-    Err(error(operator, &err))
+    Err(RuntimeError::new(operator, &err))
 }
 
 fn check_number_operand(operator: &Token, operand: &LiteralType) -> Result<f64, RuntimeError> {
@@ -253,7 +263,7 @@ fn check_number_operand(operator: &Token, operand: &LiteralType) -> Result<f64, 
         return Ok(v);
     }
     let err = format!("Operand must be a number. Got {}", operand);
-    Err(error(operator, &err))
+    Err(RuntimeError::new(operator, &err))
 }
 
 fn is_truthy(object: &LiteralType) -> bool {

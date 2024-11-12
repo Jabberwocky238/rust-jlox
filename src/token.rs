@@ -81,26 +81,26 @@ pub static KEYWORDS: Lazy<Mutex<HashMap<String, TokenType>>> = Lazy::new(|| {
 });
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum LoxLiteralValue {
+pub enum LoxLiteral {
     Number(f64),
     String(String),
     Bool(bool),
     Nil,
 }
 
-impl std::fmt::Display for LoxLiteralValue {
+impl std::fmt::Display for LoxLiteral {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LoxLiteralValue::Number(n) => write!(f, "{}", n),
-            LoxLiteralValue::String(s) => write!(f, "{}", s),
-            LoxLiteralValue::Bool(b) => write!(f, "{}", b),
-            LoxLiteralValue::Nil => write!(f, "nil"),
+            LoxLiteral::Number(n) => write!(f, "{}", n),
+            LoxLiteral::String(s) => write!(f, "{}", s),
+            LoxLiteral::Bool(b) => write!(f, "{}", b),
+            LoxLiteral::Nil => write!(f, "nil"),
         }
     }
 }
 
 pub enum LoxValue {
-    Literal(LoxLiteralValue),
+    Literal(LoxLiteral),
     Callable(Box<dyn LoxCallable>),
 }
 
@@ -117,13 +117,13 @@ impl std::fmt::Display for LoxValue {
 pub struct Token {
     pub _type: TokenType,
     pub lexeme: String,
-    pub literal: LoxLiteralValue,
+    pub literal: LoxLiteral,
     pub line: usize,
     pub offset: usize,
 }
 
 impl Token {
-    pub fn build(token_type: TokenType, lexeme: &str, literal: LoxLiteralValue, line: usize, offset: usize) -> Token {
+    pub fn build(token_type: TokenType, lexeme: &str, literal: LoxLiteral, line: usize, offset: usize) -> Token {
         Token {
             _type: token_type,
             lexeme: String::from(lexeme),

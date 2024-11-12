@@ -1,7 +1,7 @@
 use crate::ast::Function;
 use crate::environment::Environment;
 use crate::interpreter::Interpreter;
-use crate::token::{LoxLiteralValue, LoxValue};
+use crate::token::{LoxLiteral, LoxValue};
 
 pub trait LoxCallable: std::fmt::Display {
     fn arity(&self) -> usize;
@@ -32,7 +32,7 @@ impl LoxCallable for LoxFunction {
         }
         let _ = _interpreter.execute_block(&self.declaration.body, _interpreter.environment.borrow().peek());
         _interpreter.environment.borrow().pop();
-        LoxValue::Literal(LoxLiteralValue::Nil)
+        LoxValue::Literal(LoxLiteral::Nil)
     }
 }
 
@@ -53,7 +53,7 @@ impl LoxCallable for BuiltinFunctioClock {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs_f64();
-        LoxValue::Literal(LoxLiteralValue::Number(time))
+        LoxValue::Literal(LoxLiteral::Number(time))
     }
 }
 

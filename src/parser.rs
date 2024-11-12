@@ -4,8 +4,7 @@ use std::vec;
 
 use crate::ast::*;
 
-use crate::token::LoxValue;
-use crate::token::LoxLiteralValue;
+use crate::token::LoxLiteral;
 use crate::token::Token;
 use crate::token::TokenType;
 
@@ -14,11 +13,6 @@ use crate::errors::ParseError;
 pub struct Parser {
     current: Cell<usize>,
     tokens: Vec<Token>,
-}
-
-fn error(token: Option<&Token>, message: &str) -> ParseError {
-    let token = token.unwrap();
-    ParseError(format!("Error at line {} column {}: {}", token.line, token.offset, message))
 }
 
 type ParseResult<T> = Result<T, ParseError>;
@@ -56,7 +50,7 @@ impl Parser {
         if !self._check(&TokenType::RIGHTPAREN) {
             loop {
                 if params.len() >= 255 {
-                    return Err(error(self._peek(), "Cannot have more than 255 parameters."));
+                    return Err(ParseError::new(self._peek(), "Cannot have more than 255 parameters."));
                 }
                 let t = self._consume(&TokenType::IDENTIFIER, "Expect parameter name.")?;
                 params.push(t.clone());
@@ -137,7 +131,7 @@ impl Parser {
         if let Some(condition) = condition {
             body = While::build(condition, body);
         } else {
-            body = While::build(Literal::build(LoxLiteralValue::Bool(true)), body);
+            body = While::build(Literal::build(LoxLiteral::Bool(true)), body);
         }
         if let Some(initializer) = initializer {
             body = Block::build(vec![initializer, body]);
@@ -201,7 +195,7 @@ impl Parser {
                 let name = x.name.clone();
                 return Ok(Assign::build(name, value));
             }
-            return Err(error(Some(equals), "Invalid assignment target."));
+            return Err(ParseError::new(Some(equals), "Invalid assignment target."));
         }
         return Ok(expr);
     }
@@ -299,7 +293,7 @@ impl Parser {
         if !self._check(&TokenType::RIGHTPAREN) {
             loop {
                 if arguments.len() >= 255 {
-                    return Err(error(self._peek(), "Cannot have more than 255 arguments."));
+                    return Err(ParseError::new(self._peek(), "Cannot have more than 255 arguments."));
                 }
                 arguments.push(self.expression().unwrap());
                 if !self._match(&[TokenType::COMMA]) {
@@ -313,13 +307,13 @@ impl Parser {
 
     fn primary(&self) -> ParseResult<Rc<Expr>> {
         if self._match(&[TokenType::FALSE]) {
-            return Ok(Literal::build(LoxLiteralValue::Bool(false)));
+            return Ok(Literal::build(LoxLiteral::Bool(false)));
         }
         if self._match(&[TokenType::TRUE]) {
-            return Ok(Literal::build(LoxLiteralValue::Bool(true)));
+            return Ok(Literal::build(LoxLiteral::Bool(true)));
         }
         if self._match(&[TokenType::NIL]) {
-            return Ok(Literal::build(LoxLiteralValue::Nil));
+            return Ok(Literal::build(LoxLiteral::Nil));
         }
         if self._match(&[TokenType::NUMBER, TokenType::STRING]) {
             if let Some(token) = self._previous() {
@@ -336,7 +330,7 @@ impl Parser {
             let _ = self._consume(&TokenType::RIGHTPAREN, "Expect ')' after expression.");
             return Ok(Group::build(expr));
         }
-        Err(error(self._peek(), "Expect expression."))
+        Err(ParseError::new(self._peek(), "Expect expression."))
     }
 
     fn _match(&self, types: &[TokenType]) -> bool {
@@ -388,7 +382,7 @@ impl Parser {
                 return Ok(token);
             }
         }
-        Err(error(self._peek(), message))
+        Err(ParseError::new(self._peek(), message))
     }
 
     fn synchronize(&mut self) {

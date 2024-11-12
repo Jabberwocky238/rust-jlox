@@ -1,4 +1,4 @@
-use crate::token::LoxLiteralValue;
+use crate::token::LoxLiteral;
 use crate::token::LoxValue;
 use crate::token::Token;
 use std::rc::Rc;
@@ -38,7 +38,7 @@ macro_rules! impl_build {
 impl_build!( Expr, Binary, [ left: Rc<Expr>, operator: Token, right: Rc<Expr> ] );
 impl_build!( Expr, Group, [ expression: Rc<Expr> ] );
 impl_build!( Expr, Unary, [ operator: Token, right: Rc<Expr> ] );
-impl_build!( Expr, Literal, [ value: LoxLiteralValue ] );
+impl_build!( Expr, Literal, [ value: LoxLiteral ] );
 impl_build!( Expr, Variable, [ name: Token ] );
 impl_build!( Expr, Assign, [ name: Token, value: Rc<Expr> ] );
 impl_build!( Expr, Logical, [ left: Rc<Expr>, operator: Token, right: Rc<Expr> ] );
