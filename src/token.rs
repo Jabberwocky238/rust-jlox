@@ -2,7 +2,6 @@ use once_cell::sync::Lazy;
 use std::cmp::Eq;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::rc::Rc;
 use std::string::String;
 use std::sync::Mutex;
 
@@ -117,12 +116,12 @@ impl std::fmt::Display for LoxLiteral {
 }
 
 #[derive(Clone)]
-pub enum LoxValue {
+pub enum LoxValue<'v> {
     Literal(LoxLiteral),
-    Callable(Rc<dyn LoxCallable>),
+    Callable(&'v dyn LoxCallable),
 }
 
-impl std::fmt::Display for LoxValue {
+impl<'v> std::fmt::Display for LoxValue<'v> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LoxValue::Literal(l) => write!(f, "{}", l),

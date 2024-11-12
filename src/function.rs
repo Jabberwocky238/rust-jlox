@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::ast::{Function, StmtVisitable};
+use crate::ast::Function;
 use crate::interpreter::Interpreter;
 use crate::token::{LoxLiteral, LoxValue};
 
@@ -8,6 +8,18 @@ pub trait LoxCallable: std::fmt::Display {
     fn arity(&self) -> usize;
     fn call(&self, interpreter: &Interpreter, arguments: Vec<LoxValue>) -> LoxValue;
 }
+
+pub struct LoxFunctionReturn<'a> {
+    value: LoxValue<'a>,
+}
+
+impl<'a> LoxFunctionReturn<'a> {
+    pub fn new(_value: LoxValue<'a>) -> Self {
+        LoxFunctionReturn { value: _value }
+    }
+}
+
+// --------------------------------------------
 
 pub struct LoxFunction<'a> {
     declaration: &'a Function,
@@ -23,7 +35,7 @@ impl<'a> LoxFunction<'a> {
 
 impl<'a> LoxCallable for LoxFunction<'a> {
     fn arity(&self) -> usize {
-        0
+        self.declaration.params.len()
     }
     fn call(&self, _interpreter: &Interpreter, _arguments: Vec<LoxValue>) -> LoxValue {
         _interpreter.environment.borrow_mut().enter_scope(false);
@@ -33,7 +45,8 @@ impl<'a> LoxCallable for LoxFunction<'a> {
         for (param, arg) in self.declaration.params.iter().zip(drain_arg) {
             _interpreter.environment.borrow_mut().define(&param.lexeme, arg);
         }
-        self.declaration.body.as_ref().accept(_interpreter);
+        
+        _interpreter.execute_block(&self.declaration.body);
 
         _interpreter.environment.borrow_mut().exit_scope();
         LoxValue::Literal(LoxLiteral::Nil)
@@ -50,8 +63,8 @@ impl<'a> std::fmt::Display for LoxFunction<'a> {
 
 struct BuiltinFunctioClock;
 
-pub fn builtin_function_clock() -> LoxValue {
-    LoxValue::Callable(Rc::new(BuiltinFunctioClock))
+pub fn builtin_function_clock() -> LoxValue<'static> {
+    LoxValue::Callable(&BuiltinFunctioClock)
 }
 
 impl LoxCallable for BuiltinFunctioClock {

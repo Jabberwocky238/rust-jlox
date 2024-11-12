@@ -13,13 +13,13 @@ use parser::Parser;
 // use astprinter::AstPrinter;
 use scanner::Scanner;
 
-pub struct Lox {
-    interpreter: Interpreter,
+pub struct Lox<'a> {
+    interpreter: Interpreter<'a>,
     pub had_runtime_error: bool,
     pub had_error: bool,
 }
 
-impl Lox {
+impl<'a> Lox<'a> {
     pub fn new() -> Self {
         Self {
             interpreter: Interpreter::new(),
@@ -65,6 +65,8 @@ impl Lox {
                 panic!("{}", e.0);
             },
         };
+        // parser dropped here
+
         // let ast_printer = AstPrinter::new();
         // for stmt in stmts.iter() {
         //     println!("{}", ast_printer.print_stmt(stmt));

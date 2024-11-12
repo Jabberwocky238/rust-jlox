@@ -2,15 +2,15 @@ use std::{collections::HashMap, vec};
 
 use crate::{errors::RuntimeError, token::LoxValue};
 
-pub struct Environment {
-    registry: Vec<HashMap<String, LoxValue>>,
+pub struct Environment<'env> {
+    registry: Vec<HashMap<String, LoxValue<'env>>>,
     ancestor: Vec<usize>,
     curregis: usize,
     curdepth: usize,
 }
 
-impl Environment {
-    pub fn new() -> Environment {
+impl<'env> Environment<'env> {
+    pub fn new() -> Environment<'env> {
         let body = Self {
             registry: vec![HashMap::new()],
             ancestor: vec![usize::MAX],
@@ -36,7 +36,7 @@ impl Environment {
         self.curregis = self.ancestor[self.ancestor.len() - 1];
     }
 
-    pub fn define(&mut self, name: &str, value: LoxValue) {
+    pub fn define(&mut self, name: &str, value: LoxValue<'env>) {
         self.registry[self.curregis].insert(name.to_string(), value);
     }
 
@@ -53,7 +53,7 @@ impl Environment {
         ))
     }
 
-    pub fn assign(&mut self, name: &str, value: LoxValue) -> Result<(), RuntimeError> {
+    pub fn assign(&mut self, name: &str, value: LoxValue<'env>) -> Result<(), RuntimeError> {
         let mut regist_index = self.curregis;
         for depth in 0..self.curdepth {
             if self.registry[regist_index].contains_key(name) {
