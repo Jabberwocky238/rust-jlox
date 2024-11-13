@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::rc::Rc;
 
 use super::ast::*;
 
@@ -11,7 +12,9 @@ use super::token::LoxValue;
 use super::token::Token;
 use super::token::TokenType;
 
+use super::errors::RuntimeErrorT;
 use super::errors::RuntimeError;
+use super::errors::RuntimeReturn;
 
 // impl Visitable<LiteralType> for Expr {
 //     fn accept(&self, visitor: &dyn Visitor<LiteralType>) -> LiteralType {
@@ -36,7 +39,7 @@ use crate::impl_expr_visitable;
 use crate::impl_stmt_visitable;
 
 impl_expr_visitable! {
-    <LoxValue<'_>>,
+    <LoxValue>,
     (Binary, binary),
     (Group, grouping),
     (Literal, literal),
@@ -47,7 +50,7 @@ impl_expr_visitable! {
     (Call, call),
 }
 
-type RuntimeResult = Result<(), RuntimeError>;
+type RuntimeResult = Result<(), Box<dyn RuntimeErrorT>>;
 impl_stmt_visitable! {
     <RuntimeResult>,
     (Expression, expression),
@@ -60,13 +63,13 @@ impl_stmt_visitable! {
     (Return, return),
 }
 
-pub struct Interpreter<'itpt> {
-    pub environment: RefCell<Environment<'itpt>>,
+pub struct Interpreter {
+    pub environment: RefCell<Environment>,
 }
 
-impl<'v> Interpreter<'v>
+impl Interpreter
 where
-    Self: ExprVisitor<LoxValue<'v>> + StmtVisitor<RuntimeResult>,
+    Self: ExprVisitor<LoxValue> + StmtVisitor<RuntimeResult>,
 {
     pub fn new() -> Self {
         let mut env = Environment::new();
@@ -84,76 +87,61 @@ where
     fn execute(&self, stmt: &Stmt) -> RuntimeResult {
         stmt.accept(self)
     }
-    pub fn execute_block(&self, stmts: &[BoxStmt]) {
-        self.environment.borrow_mut().enter_scope(false);
-        for stmt in stmts.iter() {
-            self.execute(&*stmt).unwrap();
-        }
-        self.environment.borrow_mut().exit_scope();
-    }
-    fn evaluate(&self, expr: &Expr) -> LoxValue<'v> {
+    fn evaluate(&self, expr: &Expr) -> LoxValue {
         return expr.accept(self);
     }
 }
 
-impl<'v> ExprVisitor<LoxValue<'v>> for Interpreter<'v> {
-    fn visit_binary(&self, expr: &Binary) -> LoxValue<'v> {
+impl ExprVisitor<LoxValue> for Interpreter {
+    fn visit_binary(&self, expr: &Binary) -> LoxValue {
         let left = self.evaluate(&expr.left);
         let right = self.evaluate(&expr.right);
 
         match expr.operator._type {
             TokenType::GREATER => {
                 let (left, right) = check_number_operands(&expr.operator, &left, &right).unwrap();
-                return LoxValue::Literal(LoxLiteral::Bool(left > right));
+                return LoxValue::Bool(left > right);
             }
             TokenType::GREATEREQUAL => {
                 let (left, right) = check_number_operands(&expr.operator, &left, &right).unwrap();
-                return LoxValue::Literal(LoxLiteral::Bool(left >= right));
+                return LoxValue::Bool(left >= right);
             }
             TokenType::LESS => {
                 let (left, right) = check_number_operands(&expr.operator, &left, &right).unwrap();
-                return LoxValue::Literal(LoxLiteral::Bool(left < right));
+                return LoxValue::Bool(left < right);
             }
             TokenType::LESSEQUAL => {
                 let (left, right) = check_number_operands(&expr.operator, &left, &right).unwrap();
-                return LoxValue::Literal(LoxLiteral::Bool(left <= right));
+                return LoxValue::Bool(left <= right);
             }
             TokenType::BANGEQUAL => {
-                return LoxValue::Literal(LoxLiteral::Bool(!is_equal(&left, &right)));
+                return LoxValue::Bool(!is_equal(&left, &right));
             }
             TokenType::EQUALEQUAL => {
-                return LoxValue::Literal(LoxLiteral::Bool(is_equal(&left, &right)));
+                return LoxValue::Bool(is_equal(&left, &right));
             }
             TokenType::MINUS => {
                 let (left, right) = check_number_operands(&expr.operator, &left, &right).unwrap();
-                return LoxValue::Literal(LoxLiteral::Number(left - right));
+                return LoxValue::Number(left - right);
             }
             TokenType::PLUS => {
-                if let (
-                    LoxValue::Literal(LoxLiteral::Number(left)),
-                    LoxValue::Literal(LoxLiteral::Number(right)),
-                ) = (&left, &right)
+                if let (LoxValue::Number(left), LoxValue::Number(right)) = (&left, &right)
                 {
-                    return LoxValue::Literal(LoxLiteral::Number(left + right));
+                    return LoxValue::Number(left + right);
                 }
-                if let (
-                    LoxValue::Literal(LoxLiteral::String(left)),
-                    LoxValue::Literal(LoxLiteral::String(right)),
-                ) = (&left, &right)
+                if let (LoxValue::String(left), LoxValue::String(right)) = (&left, &right)
                 {
-                    return LoxValue::Literal(LoxLiteral::String(
-                        left.to_string() + &right.to_string(),
-                    ));
+                    return LoxValue::String(left.to_string() + &right.to_string(),);
                 }
                 panic!("Operands must be two numbers or two strings.");
             }
             TokenType::SLASH => {
                 let (left, right) = check_number_operands(&expr.operator, &left, &right).unwrap();
-                return LoxValue::Literal(LoxLiteral::Number(left / right));
+                return LoxValue::Number(left / right);
             }
             TokenType::STAR => {
                 let (left, right) = check_number_operands(&expr.operator, &left, &right).unwrap();
-                return LoxValue::Literal(LoxLiteral::Number(left * right));
+                return LoxValue::Number(left * right);
             }
             _ => {
                 panic!("Unknown operator.");
@@ -161,22 +149,22 @@ impl<'v> ExprVisitor<LoxValue<'v>> for Interpreter<'v> {
         }
         // Unreachable.
     }
-    fn visit_grouping(&self, expr: &Group) -> LoxValue<'v> {
+    fn visit_grouping(&self, expr: &Group) -> LoxValue {
         return self.evaluate(&expr.expression);
     }
-    fn visit_literal(&self, expr: &Literal) -> LoxValue<'v> {
+    fn visit_literal(&self, expr: &Literal) -> LoxValue {
         return LoxValue::Literal(expr.value.clone());
     }
-    fn visit_unary(&self, expr: &Unary) -> LoxValue<'v> {
+    fn visit_unary(&self, expr: &Unary) -> LoxValue {
         let right = self.evaluate(&expr.right);
         match expr.operator._type {
             TokenType::BANG => {
                 let result = !is_truthy(&right);
-                return LoxValue::Literal(LoxLiteral::Bool(result));
+                return LoxValue::Bool(result);
             }
             TokenType::MINUS => {
                 let right = check_number_operand(&expr.operator, &right).unwrap();
-                return LoxValue::Literal(LoxLiteral::Number(-right));
+                return LoxValue::Number(-right);
             }
             _ => {
                 panic!("Unknown operator.");
@@ -185,17 +173,17 @@ impl<'v> ExprVisitor<LoxValue<'v>> for Interpreter<'v> {
         // Unreachable
     }
 
-    fn visit_variable(&self, expr: &Variable) -> LoxValue<'v> {
-        return self.environment.borrow().get(&expr.name.lexeme).unwrap().clone();
+    fn visit_variable(&self, expr: &Variable) -> LoxValue {
+        return self.environment.borrow().get(&expr.name.lexeme).unwrap();
     }
 
-    fn visit_assign(&self, stmt: &Assign) -> LoxValue<'v> {
+    fn visit_assign(&self, stmt: &Assign) -> LoxValue {
         let value = self.evaluate(&stmt.value);
         self.environment.borrow_mut().assign(&stmt.name.lexeme, value.clone()).unwrap();
         return value;
     }
 
-    fn visit_logical(&self, stmt: &Logical) -> LoxValue<'v> {
+    fn visit_logical(&self, stmt: &Logical) -> LoxValue {
         let left = self.evaluate(&stmt.left);
         if stmt.operator._type == TokenType::OR {
             if is_truthy(&left) {
@@ -209,7 +197,7 @@ impl<'v> ExprVisitor<LoxValue<'v>> for Interpreter<'v> {
         return self.evaluate(&stmt.right);
     }
 
-    fn visit_call(&self, stmt: &Call) -> LoxValue<'v> {
+    fn visit_call(&self, stmt: &Call) -> LoxValue {
         let callee = self.evaluate(&stmt.callee);
         let mut arguments = Vec::new();
         for argument in stmt.arguments.iter() {
@@ -222,7 +210,7 @@ impl<'v> ExprVisitor<LoxValue<'v>> for Interpreter<'v> {
     }
 }
 
-impl<'v> StmtVisitor<RuntimeResult> for Interpreter<'v> {
+impl StmtVisitor<RuntimeResult> for Interpreter {
     fn visit_expression(&self, stmt: &Expression) -> RuntimeResult {
         let _ = self.evaluate(&stmt.expression);
         Ok(())
@@ -236,7 +224,7 @@ impl<'v> StmtVisitor<RuntimeResult> for Interpreter<'v> {
         let value = if let Some(ref initializer) = stmt.initializer {
             self.evaluate(initializer)
         } else {
-            LoxValue::Literal(LoxLiteral::Nil)
+            LoxValue::Nil
         };
         self.environment
             .borrow_mut()
@@ -273,7 +261,7 @@ impl<'v> StmtVisitor<RuntimeResult> for Interpreter<'v> {
 
     fn visit_function(&self, stmt: &Function) -> RuntimeResult {
         let function = LoxFunction::new(stmt);
-        let function = LoxValue::Callable(&function);
+        let function = LoxValue::Callable(Rc::new(function));
         self.environment.borrow_mut().define(&stmt.name.lexeme, function);
         Ok(())
     }
@@ -282,21 +270,17 @@ impl<'v> StmtVisitor<RuntimeResult> for Interpreter<'v> {
         let ret = if let Some(ref value) = stmt.value {
             self.evaluate(value)
         } else {
-            LoxValue::Literal(LoxLiteral::Nil)
+            LoxValue::Nil
         };
-        Ok(())
+        Err(Box::new(RuntimeReturn::new(ret)))
     }
 }
 
 // ----------------------------------------------------------------
 // ----------------------------------------------------------------
 
-fn check_number_operands(
-    operator: &Token,
-    left: &LoxValue,
-    right: &LoxValue,
-) -> Result<(f64, f64), RuntimeError> {
-    if let (LoxValue::Literal(LoxLiteral::Number(l)), LoxValue::Literal(LoxLiteral::Number(r))) =
+fn check_number_operands(operator: &Token, left: &LoxValue, right: &LoxValue) -> Result<(f64, f64), RuntimeError> {
+    if let (LoxValue::Number(l), LoxValue::Number(r)) =
         (left, right)
     {
         return Ok((*l, *r));
@@ -306,7 +290,7 @@ fn check_number_operands(
 }
 
 fn check_number_operand(operator: &Token, operand: &LoxValue) -> Result<f64, RuntimeError> {
-    if let &LoxValue::Literal(LoxLiteral::Number(v)) = operand {
+    if let &LoxValue::Number(v) = operand {
         return Ok(v);
     }
     let err = format!("Operand must be a number. Got {}", operand);
@@ -314,30 +298,23 @@ fn check_number_operand(operator: &Token, operand: &LoxValue) -> Result<f64, Run
 }
 
 fn is_truthy(object: &LoxValue) -> bool {
-    if let LoxValue::Literal(x) = object {
-        if LoxLiteral::Nil == *x {
-            return false;
-        }
+    if let LoxValue::Nil = object {
+        return false;
     }
-    if let LoxValue::Literal(value) = object {
-        if let LoxLiteral::Bool(value) = *value {
-            return value;
-        }
+    if let LoxValue::Bool(value) = object {
+        return *value;
     }
     return true;
 }
 
 fn is_equal(a: &LoxValue, b: &LoxValue) -> bool {
-    if let (LoxValue::Literal(LoxLiteral::Nil), LoxValue::Literal(LoxLiteral::Nil)) = (a, b) {
+    if let (LoxValue::Nil, LoxValue::Nil) = (a, b) {
         return true;
     }
-    if let LoxValue::Literal(LoxLiteral::Nil) = a {
+    if let LoxValue::Nil = a {
         return false;
     }
-    if let (LoxValue::Literal(a), LoxValue::Literal(b)) = (a, b) {
-        return a == b;
-    }
-    return false;
+    return a == b;
 }
 
 // fn stringify(object: LiteralType) -> String {

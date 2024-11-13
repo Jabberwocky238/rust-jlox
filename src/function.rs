@@ -1,22 +1,10 @@
-use std::rc::Rc;
-
-use crate::ast::Function;
+use crate::ast::{Function, StmtVisitable};
 use crate::interpreter::Interpreter;
-use crate::token::{LoxLiteral, LoxValue};
+use crate::token::LoxValue;
 
 pub trait LoxCallable: std::fmt::Display {
     fn arity(&self) -> usize;
     fn call(&self, interpreter: &Interpreter, arguments: Vec<LoxValue>) -> LoxValue;
-}
-
-pub struct LoxFunctionReturn<'a> {
-    value: LoxValue<'a>,
-}
-
-impl<'a> LoxFunctionReturn<'a> {
-    pub fn new(_value: LoxValue<'a>) -> Self {
-        LoxFunctionReturn { value: _value }
-    }
 }
 
 // --------------------------------------------
@@ -46,10 +34,10 @@ impl<'a> LoxCallable for LoxFunction<'a> {
             _interpreter.environment.borrow_mut().define(&param.lexeme, arg);
         }
         
-        _interpreter.execute_block(&self.declaration.body);
+        self.declaration.body.accept(_interpreter);
 
         _interpreter.environment.borrow_mut().exit_scope();
-        LoxValue::Literal(LoxLiteral::Nil)
+        LoxValue::Nil
     }
 }
 
@@ -63,8 +51,8 @@ impl<'a> std::fmt::Display for LoxFunction<'a> {
 
 struct BuiltinFunctioClock;
 
-pub fn builtin_function_clock() -> LoxValue<'static> {
-    LoxValue::Callable(&BuiltinFunctioClock)
+pub fn builtin_function_clock() -> LoxValue {
+    LoxValue::Callable(Box::new(BuiltinFunctioClock))
 }
 
 impl LoxCallable for BuiltinFunctioClock {
@@ -76,7 +64,7 @@ impl LoxCallable for BuiltinFunctioClock {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs_f64();
-        LoxValue::Literal(LoxLiteral::Number(time))
+        LoxValue::Number(time)
     }
 }
 

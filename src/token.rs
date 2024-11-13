@@ -2,6 +2,7 @@ use once_cell::sync::Lazy;
 use std::cmp::Eq;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::rc::Rc;
 use std::string::String;
 use std::sync::Mutex;
 
@@ -115,16 +116,23 @@ impl std::fmt::Display for LoxLiteral {
     }
 }
 
-#[derive(Clone)]
-pub enum LoxValue<'v> {
-    Literal(LoxLiteral),
-    Callable(&'v dyn LoxCallable),
+#[derive(PartialEq)]
+pub enum LoxValue {
+    Number(f64),
+    String(String),
+    Bool(bool),
+    Nil,
+    Callable(Box<dyn for<'a> LoxCallable>),
 }
 
-impl<'v> std::fmt::Display for LoxValue<'v> {
+impl std::fmt::Display for LoxValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LoxValue::Literal(l) => write!(f, "{}", l),
+            LoxValue::Number(n) => write!(f, "{}", n),
+            LoxValue::String(s) => write!(f, "{}", s),
+            LoxValue::Bool(b) => write!(f, "{}", b),
+            LoxValue::Nil => write!(f, "nil"),
+            // LoxValue::Literal(l) => write!(f, "{}", l),
             LoxValue::Callable(c) => write!(f, "{}", c),
         }
     }
