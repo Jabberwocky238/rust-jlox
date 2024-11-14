@@ -123,7 +123,7 @@ impl Scanner {
     }
     fn _identifier(&mut self) {
         while let Some(ch) = self._peek() {
-            if ch.is_alphanumeric() {
+            if ch.is_alphanumeric() || ch == '_' {
                 self._advance();
             } else {
                 break;

@@ -52,9 +52,9 @@ impl Lox {
         // scanner dropped here
 
         // For now, just print the tokens.
-        // for token in tokens.iter() {
-        //     println!("{:?}", token);
-        // }
+        for token in tokens.iter() {
+            println!("{:?}", token);
+        }
 
         let parser: Parser = Parser::new(tokens);
         let stmts = match parser.parse() {

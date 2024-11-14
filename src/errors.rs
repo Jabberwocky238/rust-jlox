@@ -1,5 +1,5 @@
 use crate::{ast::LoxValue, token::Token};
-use std::{any::Any, fmt::{Debug, Display, Formatter, Result}, rc::Rc};
+use std::{fmt::{Debug, Display, Formatter, Result}, rc::Rc};
 
 pub trait RuntimeErrorT: Display {}
 
