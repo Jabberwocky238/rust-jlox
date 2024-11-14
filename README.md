@@ -1,13 +1,15 @@
 # jlox implementation in rust
-still in progress at chapter 10: Functions
 
-# unit tests
+**chapter 10: Functions has been finished**
+
+## run
 ```bash
 cargo test
+
+cargo run -- samples/closure.lox
+cargo run -- samples/binding.lox
 ```
 
-# run
-```bash
-cargo run -- scripts/closure.lox
-cargo run -- scripts/binding.lox
-```
+## thanks
+
+[craftinginterpreters](https://craftinginterpreters.com/)

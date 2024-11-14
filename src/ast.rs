@@ -19,11 +19,6 @@ macro_rules! impl_build {
                     let warp = $namespace::[< $token >](this);
                     Rc::new(warp)
                 }
-                // pub fn build($( $param: $t, )*) -> $namespace {
-                //     let this = Self { $( $param , )* };
-                //     let warp = $namespace::[< $token >](this);
-                //     warp
-                // }
             }
         }
     };

@@ -8,13 +8,12 @@ java src\main\java\com\tool\GenerateAst.java src\main\java\com\utils
 
 ```bash
 after chapter 8
-mvn exec:java -Dexec.mainClass="com.jlox.Lox" -Dexec.args="../scripts/scope.lox"
+mvn exec:java -Dexec.mainClass="com.jlox.Lox" -Dexec.args="../samples/scope.lox"
 after chapter 9
-mvn exec:java -Dexec.mainClass="com.jlox.Lox" -Dexec.args="../scripts/for.lox"
+mvn exec:java -Dexec.mainClass="com.jlox.Lox" -Dexec.args="../samples/for_if.lox"
 after chapter 10
-mvn exec:java -Dexec.mainClass="com.jlox.Lox" -Dexec.args="../scripts/func.lox"
-mvn exec:java -Dexec.mainClass="com.jlox.Lox" -Dexec.args="../scripts/while_in_func.lox"
-mvn exec:java -Dexec.mainClass="com.jlox.Lox" -Dexec.args="../scripts/closure.lox"
+mvn exec:java -Dexec.mainClass="com.jlox.Lox" -Dexec.args="../samples/func.lox"
+mvn exec:java -Dexec.mainClass="com.jlox.Lox" -Dexec.args="../samples/closure.lox"
 ```
 
 
