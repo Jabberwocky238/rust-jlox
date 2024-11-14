@@ -1,5 +1,5 @@
+use crate::token::{Token, TokenLiteral, TokenType, KEYWORDS};
 use std::string::String;
-use crate::token::{TokenLiteral, Token, TokenType, KEYWORDS};
 
 pub struct Scanner {
     source: String,
@@ -102,7 +102,10 @@ impl Scanner {
                     } else if c.is_alphabetic() {
                         self._identifier();
                     } else {
-                        println!("{}", format!("line: {}, Unexpected character: {}", self.line, c));
+                        println!(
+                            "{}",
+                            format!("line: {}, Unexpected character: {}", self.line, c)
+                        );
                         return Some(true);
                     }
                 }
@@ -157,7 +160,9 @@ impl Scanner {
                 }
             }
         }
-        let var_number = self.source[self.start..self.current].parse::<f64>().unwrap();
+        let var_number = self.source[self.start..self.current]
+            .parse::<f64>()
+            .unwrap();
         self.add_token(TokenType::NUMBER, TokenLiteral::Number(var_number));
     }
 
@@ -215,71 +220,62 @@ impl Scanner {
     }
 }
 
+#[test]
+fn test1() {
+    let source: String = "(1 + 2) * (4 - 3);".to_string();
+    let scanner = Scanner::build(&source);
+    let tokens = scanner.scan_tokens();
 
+    assert_eq!(tokens.len(), 13);
+    assert_eq!(tokens[0]._type, TokenType::LEFTPAREN);
+    assert_eq!(tokens[1]._type, TokenType::NUMBER);
+    assert_eq!(tokens[2]._type, TokenType::PLUS);
+    assert_eq!(tokens[3]._type, TokenType::NUMBER);
+    assert_eq!(tokens[4]._type, TokenType::RIGHTPAREN);
+    assert_eq!(tokens[5]._type, TokenType::STAR);
+    assert_eq!(tokens[6]._type, TokenType::LEFTPAREN);
+    assert_eq!(tokens[7]._type, TokenType::NUMBER);
+    assert_eq!(tokens[8]._type, TokenType::MINUS);
+    assert_eq!(tokens[9]._type, TokenType::NUMBER);
+    assert_eq!(tokens[10]._type, TokenType::RIGHTPAREN);
+    assert_eq!(tokens[11]._type, TokenType::SEMICOLON);
+    assert_eq!(tokens[12]._type, TokenType::EOF);
+}
 
-#[cfg(test)]
-mod tests_4_scanner {
-    use crate::scanner::Scanner;
-    use crate::scanner::TokenType;
+#[test]
+fn test2() {
+    let source: String = "1 >= 2 and 4 < 3;".to_string();
+    let scanner = Scanner::build(&source);
+    let tokens = scanner.scan_tokens();
 
-    #[test]
-    fn test1() {
-        let source: String = "(1 + 2) * (4 - 3);".to_string();
-        let scanner = Scanner::build(&source);
-        let tokens = scanner.scan_tokens();
+    assert_eq!(tokens.len(), 9);
+    assert_eq!(tokens[0]._type, TokenType::NUMBER);
+    assert_eq!(tokens[1]._type, TokenType::GREATEREQUAL);
+    assert_eq!(tokens[2]._type, TokenType::NUMBER);
+    assert_eq!(tokens[3]._type, TokenType::AND);
+    assert_eq!(tokens[4]._type, TokenType::NUMBER);
+    assert_eq!(tokens[5]._type, TokenType::LESS);
+    assert_eq!(tokens[6]._type, TokenType::NUMBER);
+    assert_eq!(tokens[7]._type, TokenType::SEMICOLON);
+    assert_eq!(tokens[8]._type, TokenType::EOF);
+}
 
-        assert_eq!(tokens.len(), 13);
-        assert_eq!(tokens[0]._type, TokenType::LEFTPAREN);
-        assert_eq!(tokens[1]._type, TokenType::NUMBER);
-        assert_eq!(tokens[2]._type, TokenType::PLUS);
-        assert_eq!(tokens[3]._type, TokenType::NUMBER);
-        assert_eq!(tokens[4]._type, TokenType::RIGHTPAREN);
-        assert_eq!(tokens[5]._type, TokenType::STAR);
-        assert_eq!(tokens[6]._type, TokenType::LEFTPAREN);
-        assert_eq!(tokens[7]._type, TokenType::NUMBER);
-        assert_eq!(tokens[8]._type, TokenType::MINUS);
-        assert_eq!(tokens[9]._type, TokenType::NUMBER);
-        assert_eq!(tokens[10]._type, TokenType::RIGHTPAREN);
-        assert_eq!(tokens[11]._type, TokenType::SEMICOLON);
-        assert_eq!(tokens[12]._type, TokenType::EOF);
-    }
-    
-    #[test]
-    fn test2() {
-        let source: String = "1 >= 2 and 4 < 3;".to_string();
-        let scanner = Scanner::build(&source);
-        let tokens = scanner.scan_tokens();
+#[test]
+fn test3() {
+    let source: String = "1 >= 99 + 5.2 or 2.2 < 3.3;".to_string();
+    let scanner = Scanner::build(&source);
+    let tokens = scanner.scan_tokens();
 
-        assert_eq!(tokens.len(), 9);
-        assert_eq!(tokens[0]._type, TokenType::NUMBER);
-        assert_eq!(tokens[1]._type, TokenType::GREATEREQUAL);
-        assert_eq!(tokens[2]._type, TokenType::NUMBER);
-        assert_eq!(tokens[3]._type, TokenType::AND);
-        assert_eq!(tokens[4]._type, TokenType::NUMBER);
-        assert_eq!(tokens[5]._type, TokenType::LESS);
-        assert_eq!(tokens[6]._type, TokenType::NUMBER);
-        assert_eq!(tokens[7]._type, TokenType::SEMICOLON);
-        assert_eq!(tokens[8]._type, TokenType::EOF);
-    }
-
-    #[test]
-    fn test3() {
-        let source: String = "1 >= 99 + 5.2 or 2.2 < 3.3;".to_string();
-        let scanner = Scanner::build(&source);
-        let tokens = scanner.scan_tokens();
-
-        assert_eq!(tokens.len(), 11);
-        assert_eq!(tokens[0]._type, TokenType::NUMBER);
-        assert_eq!(tokens[1]._type, TokenType::GREATEREQUAL);
-        assert_eq!(tokens[2]._type, TokenType::NUMBER);
-        assert_eq!(tokens[3]._type, TokenType::PLUS);
-        assert_eq!(tokens[4]._type, TokenType::NUMBER);
-        assert_eq!(tokens[5]._type, TokenType::OR);
-        assert_eq!(tokens[6]._type, TokenType::NUMBER);
-        assert_eq!(tokens[7]._type, TokenType::LESS);
-        assert_eq!(tokens[8]._type, TokenType::NUMBER);
-        assert_eq!(tokens[9]._type, TokenType::SEMICOLON);
-        assert_eq!(tokens[10]._type, TokenType::EOF);
-    }
-
+    assert_eq!(tokens.len(), 11);
+    assert_eq!(tokens[0]._type, TokenType::NUMBER);
+    assert_eq!(tokens[1]._type, TokenType::GREATEREQUAL);
+    assert_eq!(tokens[2]._type, TokenType::NUMBER);
+    assert_eq!(tokens[3]._type, TokenType::PLUS);
+    assert_eq!(tokens[4]._type, TokenType::NUMBER);
+    assert_eq!(tokens[5]._type, TokenType::OR);
+    assert_eq!(tokens[6]._type, TokenType::NUMBER);
+    assert_eq!(tokens[7]._type, TokenType::LESS);
+    assert_eq!(tokens[8]._type, TokenType::NUMBER);
+    assert_eq!(tokens[9]._type, TokenType::SEMICOLON);
+    assert_eq!(tokens[10]._type, TokenType::EOF);
 }

@@ -27,7 +27,7 @@ impl Lox {
             had_error: false,
         }
     }
-    pub fn run_file(&mut self, path: &String) {
+    pub fn run_file(&mut self, path: &str) {
         // 读文件
         let source = std::fs::read_to_string(path).unwrap();
         // 调用run
@@ -52,9 +52,9 @@ impl Lox {
         // scanner dropped here
 
         // For now, just print the tokens.
-        for token in tokens.iter() {
-            println!("{:?}", token);
-        }
+        // for token in tokens.iter() {
+        //     println!("{:?}", token);
+        // }
 
         let parser: Parser = Parser::new(tokens);
         let stmts = match parser.parse() {

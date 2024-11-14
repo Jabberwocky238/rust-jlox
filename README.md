@@ -1,13 +1,13 @@
 # jlox implementation in rust
-still in progress at chapter 8: Statements and State  
+still in progress at chapter 10: Functions
 
 # unit tests
 ```bash
-cargo test -- --test-threads=1
+cargo test
 ```
 
 # run
 ```bash
-cargo run -- scripts/math1.lox
-cargo run -- scripts/scope.lox
+cargo run -- scripts/closure.lox
+cargo run -- scripts/binding.lox
 ```
