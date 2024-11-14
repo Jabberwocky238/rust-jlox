@@ -1,9 +1,9 @@
-use std::{collections::HashMap, vec};
+use std::{collections::HashMap, rc::Rc, vec};
 
-use crate::{errors::RuntimeError, token::LoxValue};
+use crate::{ast::LoxValue, errors::RuntimeError};
 
 pub struct Environment {
-    registry: Vec<HashMap<String, LoxValue>>,
+    registry: Vec<HashMap<String, Rc<LoxValue>>>,
     ancestor: Vec<usize>,
     curregis: usize,
     curdepth: usize,
@@ -21,41 +21,42 @@ impl Environment {
     }
     
     pub fn enter_scope(&mut self, is_global: bool) {
-        self.registry.push(HashMap::new());
         if is_global {
             self.ancestor.push(0);
         } else {
-            self.ancestor.push(self.ancestor[self.registry.len() - 1]);
+            self.ancestor.push(self.registry.len() - 1);
         }
+        self.registry.push(HashMap::new());
         self.curdepth += 1;
         self.curregis = self.registry.len() - 1;
     }
 
     pub fn exit_scope(&mut self) {
         self.curdepth -= 1;
-        self.curregis = self.ancestor[self.ancestor.len() - 1];
+        self.curregis = self.ancestor[self.registry.len() - 1];
     }
 
-    pub fn define(&mut self, name: &str, value: LoxValue) {
+    pub fn define(&mut self, name: &str, value: Rc<LoxValue>) {
         self.registry[self.curregis].insert(name.to_string(), value);
     }
 
-    pub fn get(&self, name: &str) -> Result<&LoxValue, RuntimeError> {
+    pub fn get(&self, name: &str) -> Result<Rc<LoxValue>, RuntimeError> {
         let mut regist_index = self.curregis;
-        for depth in 0..self.curdepth {
+        while regist_index != usize::MAX {
+            // dbg!(&self.registry[regist_index]);
+            // dbg!(&self.ancestor[regist_index]);
+            dbg!(&regist_index);
             if let Some(value) = self.registry[regist_index].get(name) {
-                return Ok(value);
+                return Ok(value.clone());
             }
             regist_index = self.ancestor[regist_index];
         }
-        Err(RuntimeError(
-            name.to_string() + "Undefined variable '" + name + "'.",
-        ))
+        Err(RuntimeError("Undefined variable '".to_string() + name + "'."))
     }
 
-    pub fn assign(&mut self, name: &str, value: LoxValue) -> Result<(), RuntimeError> {
+    pub fn assign(&mut self, name: &str, value: Rc<LoxValue>) -> Result<(), RuntimeError> {
         let mut regist_index = self.curregis;
-        for depth in 0..self.curdepth {
+        while regist_index != usize::MAX {
             if self.registry[regist_index].contains_key(name) {
                 self.registry[regist_index].insert(name.to_string(), value);
                 return Ok(());

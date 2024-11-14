@@ -72,7 +72,7 @@ impl Lox {
         //     println!("{}", ast_printer.print_stmt(stmt));
         // }
         
-        match self.interpreter.interpret(&stmts) {
+        match self.interpreter.interpret(stmts) {
             Ok(_) => {},
             Err(e) => {
                 self.had_error = true;

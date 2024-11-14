@@ -1,31 +1,32 @@
-use crate::ast::{Function, StmtVisitable};
+use std::rc::Rc;
+
+use crate::ast::{self, Function, LoxValue, StmtVisitable};
 use crate::interpreter::Interpreter;
-use crate::token::LoxValue;
 
 pub trait LoxCallable: std::fmt::Display {
     fn arity(&self) -> usize;
-    fn call(&self, interpreter: &Interpreter, arguments: Vec<LoxValue>) -> LoxValue;
+    fn call(&self, interpreter: &Interpreter, arguments: Vec<Rc<LoxValue>>) -> LoxValue;
 }
 
 // --------------------------------------------
 
-pub struct LoxFunction<'a> {
-    declaration: &'a Function,
+pub struct LoxFunction {
+    declaration: Function,
 }
 
-impl<'a> LoxFunction<'a> {
-    pub fn new(_declaration: &'a Function) -> Self {
+impl LoxFunction {
+    pub fn new(_declaration: Function) -> Self {
         LoxFunction {
             declaration: _declaration,
         }
     }
 }
 
-impl<'a> LoxCallable for LoxFunction<'a> {
+impl LoxCallable for LoxFunction {
     fn arity(&self) -> usize {
         self.declaration.params.len()
     }
-    fn call(&self, _interpreter: &Interpreter, _arguments: Vec<LoxValue>) -> LoxValue {
+    fn call(&self, _interpreter: &Interpreter, _arguments: Vec<Rc<LoxValue>>) -> LoxValue {
         _interpreter.environment.borrow_mut().enter_scope(false);
 
         let mut _arguments = _arguments;
@@ -34,14 +35,14 @@ impl<'a> LoxCallable for LoxFunction<'a> {
             _interpreter.environment.borrow_mut().define(&param.lexeme, arg);
         }
         
-        self.declaration.body.accept(_interpreter);
+        let _ = <ast::Stmt as Clone>::clone(&self.declaration.body).accept(_interpreter);
 
         _interpreter.environment.borrow_mut().exit_scope();
         LoxValue::Nil
     }
 }
 
-impl<'a> std::fmt::Display for LoxFunction<'a> {
+impl std::fmt::Display for LoxFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "<fn {}>", self.declaration.name.lexeme)
     }
@@ -59,7 +60,7 @@ impl LoxCallable for BuiltinFunctioClock {
     fn arity(&self) -> usize {
         0
     }
-    fn call(&self, _interpreter: &Interpreter, _arguments: Vec<LoxValue>) -> LoxValue {
+    fn call(&self, _interpreter: &Interpreter, _arguments: Vec<Rc<LoxValue>>) -> LoxValue {
         let time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()

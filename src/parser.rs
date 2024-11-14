@@ -3,7 +3,7 @@ use std::vec;
 
 use crate::ast::*;
 
-use crate::token::LoxLiteral;
+use crate::token::TokenLiteral;
 use crate::token::Token;
 use crate::token::TokenType;
 
@@ -23,7 +23,7 @@ impl Parser {
             tokens,
         }
     }
-    pub fn parse(self) -> ParseResult<Vec<BoxStmt>> {
+    pub fn parse(self) -> ParseResult<Vec<RcStmt>> {
         let mut stmts = vec![];
         while !self._is_end() {
             let stmt = self.declaration()?;
@@ -32,7 +32,7 @@ impl Parser {
         return Ok(stmts);
     }
 
-    fn declaration(&self) -> ParseResult<BoxStmt> {
+    fn declaration(&self) -> ParseResult<RcStmt> {
         if self._match(&[TokenType::FUN]) {
             return self.function("function");
         }
@@ -42,7 +42,7 @@ impl Parser {
         self.statement()
     }
 
-    fn function(&self, kind: &str) -> ParseResult<BoxStmt> {
+    fn function(&self, kind: &str) -> ParseResult<RcStmt> {
         let name = self._consume(&TokenType::IDENTIFIER, &format!("Expect {} name.", kind))?;
         self._consume(&TokenType::LEFTPAREN, &format!("Expect '(' after {} name.", kind))?;
         let mut params = vec![];
@@ -64,7 +64,7 @@ impl Parser {
         return Ok(Function::build(name.clone(), params, body));
     }
 
-    fn var_declaration(&self) -> ParseResult<BoxStmt> {
+    fn var_declaration(&self) -> ParseResult<RcStmt> {
         let name = self._consume(&TokenType::IDENTIFIER, "Expect variable name.")?;
         let initializer = if self._match(&[TokenType::EQUAL]) {
             Some(self.expression()?)
@@ -78,7 +78,7 @@ impl Parser {
         return Ok(Var::build(name.clone(), initializer));
     }
 
-    fn statement(&self) -> ParseResult<BoxStmt> {
+    fn statement(&self) -> ParseResult<RcStmt> {
         if self._match(&[TokenType::FOR]) {
             return self.for_statement();
         }
@@ -100,7 +100,7 @@ impl Parser {
         return self.expression_statement();
     }
 
-    fn for_statement(&self) -> ParseResult<BoxStmt> {
+    fn for_statement(&self) -> ParseResult<RcStmt> {
         self._consume(&TokenType::LEFTPAREN, "Expect '(' after 'for'.")?;
 
         let initializer = if self._match(&[TokenType::SEMICOLON]) {
@@ -133,7 +133,7 @@ impl Parser {
         if let Some(condition) = condition {
             body = While::build(condition, body);
         } else {
-            body = While::build(Literal::build(LoxLiteral::Bool(true)), body);
+            body = While::build(Literal::build(TokenLiteral::Bool(true)), body);
         }
         if let Some(initializer) = initializer {
             body = Block::build(vec![initializer, body]);
@@ -142,7 +142,7 @@ impl Parser {
         return Ok(body);
     }
 
-    fn if_statement(&self) -> ParseResult<BoxStmt> {
+    fn if_statement(&self) -> ParseResult<RcStmt> {
         self._consume(&TokenType::LEFTPAREN, "Expect '(' after 'if'.")?;
         let condition = self.expression()?;
         self._consume(&TokenType::RIGHTPAREN, "Expect ')' after if condition.")?;
@@ -155,13 +155,13 @@ impl Parser {
         return Ok(If::build(condition, then_branch, else_branch));
     }
 
-    fn print_statement(&self) -> ParseResult<BoxStmt> {
+    fn print_statement(&self) -> ParseResult<RcStmt> {
         let value = self.expression()?;
         self._consume(&TokenType::SEMICOLON, "Expect ';' after value.")?;
         return Ok(Print::build(value));
     }
 
-    fn return_statement(&self) -> ParseResult<BoxStmt> {
+    fn return_statement(&self) -> ParseResult<RcStmt> {
         let keyword = self._previous().unwrap();
         let value = if !self._check(&TokenType::SEMICOLON) {
             Some(self.expression()?)
@@ -172,7 +172,7 @@ impl Parser {
         return Ok(Return::build(keyword.clone(), value));
     }
     
-    fn while_statement(&self) -> ParseResult<BoxStmt> {
+    fn while_statement(&self) -> ParseResult<RcStmt> {
         self._consume(&TokenType::LEFTPAREN, "Expect '(' after 'while'.")?;
         let condition = self.expression()?;
         self._consume(&TokenType::RIGHTPAREN, "Expect ')' after condition.")?;
@@ -181,7 +181,7 @@ impl Parser {
     }
 
 
-    fn block(&self) -> ParseResult<BoxStmt> {
+    fn block(&self) -> ParseResult<RcStmt> {
         let mut statements = vec![];
         while !self._check(&TokenType::RIGHTBRACE) && !self._is_end() {
             statements.push(self.declaration()?);
@@ -190,17 +190,17 @@ impl Parser {
         return Ok(Block::build(statements));
     }
 
-    fn expression_statement(&self) -> ParseResult<BoxStmt> {
+    fn expression_statement(&self) -> ParseResult<RcStmt> {
         let value = self.expression()?;
         self._consume(&TokenType::SEMICOLON, "Expect ';' after value.")?;
         return Ok(Expression::build(value));
     }
 
-    fn expression(&self) -> ParseResult<BoxExpr> {
+    fn expression(&self) -> ParseResult<RcExpr> {
         return self.assignment();
     }
 
-    fn assignment(&self) -> ParseResult<BoxExpr> {
+    fn assignment(&self) -> ParseResult<RcExpr> {
         let expr = self.or()?;
         if self._match(&[TokenType::EQUAL]) {
             let equals = self._previous().unwrap();
@@ -214,7 +214,7 @@ impl Parser {
         return Ok(expr);
     }
 
-    fn or(&self) -> ParseResult<BoxExpr> {
+    fn or(&self) -> ParseResult<RcExpr> {
         let mut expr = self.and()?;
         while self._match(&[TokenType::OR]) {
             let operator = self._previous().unwrap();
@@ -224,7 +224,7 @@ impl Parser {
         return Ok(expr);
     }
 
-    fn and(&self) -> ParseResult<BoxExpr> {
+    fn and(&self) -> ParseResult<RcExpr> {
         let mut expr = self.equality()?;
         while self._match(&[TokenType::AND]) {
             let operator = self._previous().unwrap();
@@ -234,7 +234,7 @@ impl Parser {
         return Ok(expr);
     }
 
-    fn equality(&self) -> ParseResult<BoxExpr> {
+    fn equality(&self) -> ParseResult<RcExpr> {
         let mut expr = self.comparison().unwrap();
 
         while self._match(&[TokenType::BANGEQUAL, TokenType::EQUALEQUAL]) {
@@ -246,7 +246,7 @@ impl Parser {
         return Ok(expr);
     }
 
-    fn comparison(&self) -> ParseResult<BoxExpr> {
+    fn comparison(&self) -> ParseResult<RcExpr> {
         let mut expr = self.term().unwrap();
         while self._match(&[
             TokenType::GREATER,
@@ -261,7 +261,7 @@ impl Parser {
         return Ok(expr);
     }
 
-    fn term(&self) -> ParseResult<BoxExpr> {
+    fn term(&self) -> ParseResult<RcExpr> {
         let mut expr = self.factor().unwrap();
         while self._match(&[TokenType::MINUS, TokenType::PLUS]) {
             let operator = self._previous().unwrap();
@@ -271,7 +271,7 @@ impl Parser {
         return Ok(expr);
     }
 
-    fn factor(&self) -> ParseResult<BoxExpr> {
+    fn factor(&self) -> ParseResult<RcExpr> {
         let mut expr = self.unary().unwrap();
         while self._match(&[TokenType::SLASH, TokenType::STAR]) {
             let operator = self._previous().unwrap();
@@ -281,7 +281,7 @@ impl Parser {
         return Ok(expr);
     }
 
-    fn unary(&self) -> ParseResult<BoxExpr> {
+    fn unary(&self) -> ParseResult<RcExpr> {
         if self._match(&[TokenType::BANG, TokenType::MINUS]) {
             let operator = self._previous().unwrap();
             let right = self.unary().unwrap();
@@ -290,7 +290,7 @@ impl Parser {
         return self.call();
     }
 
-    fn call(&self) -> ParseResult<BoxExpr> {
+    fn call(&self) -> ParseResult<RcExpr> {
         let mut expr = self.primary().unwrap();
         loop {
             if self._match(&[TokenType::LEFTPAREN]) {
@@ -302,7 +302,7 @@ impl Parser {
         return Ok(expr);
     }
 
-    fn finish_call(&self, callee: BoxExpr) -> ParseResult<BoxExpr> {
+    fn finish_call(&self, callee: RcExpr) -> ParseResult<RcExpr> {
         let mut arguments = vec![];
         if !self._check(&TokenType::RIGHTPAREN) {
             loop {
@@ -319,15 +319,15 @@ impl Parser {
         return Ok(Call::build(callee, paren.clone(), arguments));
     }
 
-    fn primary(&self) -> ParseResult<BoxExpr> {
+    fn primary(&self) -> ParseResult<RcExpr> {
         if self._match(&[TokenType::FALSE]) {
-            return Ok(Literal::build(LoxLiteral::Bool(false)));
+            return Ok(Literal::build(TokenLiteral::Bool(false)));
         }
         if self._match(&[TokenType::TRUE]) {
-            return Ok(Literal::build(LoxLiteral::Bool(true)));
+            return Ok(Literal::build(TokenLiteral::Bool(true)));
         }
         if self._match(&[TokenType::NIL]) {
-            return Ok(Literal::build(LoxLiteral::Nil));
+            return Ok(Literal::build(TokenLiteral::Nil));
         }
         if self._match(&[TokenType::NUMBER, TokenType::STRING]) {
             if let Some(token) = self._previous() {

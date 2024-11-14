@@ -1,5 +1,5 @@
 use std::string::String;
-use crate::token::{LoxLiteral, Token, TokenType, KEYWORDS};
+use crate::token::{TokenLiteral, Token, TokenType, KEYWORDS};
 
 pub struct Scanner {
     source: String,
@@ -29,7 +29,7 @@ impl Scanner {
         self.tokens.push(Token::build(
             TokenType::EOF,
             "",
-            LoxLiteral::Nil,
+            TokenLiteral::Nil,
             self.line,
             self.current,
         ));
@@ -111,7 +111,7 @@ impl Scanner {
         return Some(false);
     }
 
-    fn add_token(&mut self, token_type: TokenType, literal: LoxLiteral) {
+    fn add_token(&mut self, token_type: TokenType, literal: TokenLiteral) {
         let sub_string = self.source[self.start..self.current].to_owned();
         self.tokens.push(Token::build(
             token_type,
@@ -131,8 +131,8 @@ impl Scanner {
         }
         let text = self.source[self.start..self.current].to_owned();
         match KEYWORDS.lock().unwrap().get(&text) {
-            Some(t) => self.add_token(t.clone(), LoxLiteral::String(text)),
-            None => self.add_token(TokenType::IDENTIFIER, LoxLiteral::String(text)),
+            Some(t) => self.add_token(t.clone(), TokenLiteral::String(text)),
+            None => self.add_token(TokenType::IDENTIFIER, TokenLiteral::String(text)),
         }
     }
     fn _number(&mut self) {
@@ -158,7 +158,7 @@ impl Scanner {
             }
         }
         let var_number = self.source[self.start..self.current].parse::<f64>().unwrap();
-        self.add_token(TokenType::NUMBER, LoxLiteral::Number(var_number));
+        self.add_token(TokenType::NUMBER, TokenLiteral::Number(var_number));
     }
 
     fn _string(&mut self) {
@@ -180,10 +180,10 @@ impl Scanner {
         self._advance();
         // Trim the surrounding quotes.
         let var_string = self.source[self.start + 1..self.current - 1].to_owned();
-        self.add_token(TokenType::STRING, LoxLiteral::String(var_string));
+        self.add_token(TokenType::STRING, TokenLiteral::String(var_string));
     }
     fn _add_token(&mut self, token_type: TokenType) {
-        self.add_token(token_type, LoxLiteral::Nil);
+        self.add_token(token_type, TokenLiteral::Nil);
     }
     fn _match_char(&mut self, expected: char) -> bool {
         if self.is_at_end() {

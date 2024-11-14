@@ -1,5 +1,5 @@
-use crate::token::{LoxValue, Token};
-use std::fmt::{Debug, Display, Formatter, Result};
+use crate::{ast::LoxValue, token::Token};
+use std::{fmt::{Debug, Display, Formatter, Result}, rc::Rc};
 
 pub trait RuntimeErrorT: Display{}
 
@@ -27,7 +27,7 @@ impl RuntimeError {
 }
 
 // -------------------------------------------------------
-pub struct RuntimeReturn(pub LoxValue);
+pub struct RuntimeReturn(pub Rc<LoxValue>);
 
 impl RuntimeErrorT for RuntimeReturn{}
 
@@ -44,7 +44,7 @@ impl Debug for RuntimeReturn {
 }
 
 impl RuntimeReturn {
-    pub fn new(_value: LoxValue) -> RuntimeReturn {
+    pub fn new(_value: Rc<LoxValue>) -> RuntimeReturn {
         RuntimeReturn(_value)
     }
 }

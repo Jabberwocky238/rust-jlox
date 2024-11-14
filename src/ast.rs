@@ -1,18 +1,23 @@
-use crate::token::LoxLiteral;
+use std::fmt::Debug;
+use std::rc::Rc;
+
+use crate::function::LoxCallable;
+use crate::token::TokenLiteral;
 use crate::token::Token;
 use paste::paste;
 
 macro_rules! impl_build {
     ($namespace:ty, $token:ty, [ $($param:ident: $t:ty), * ] ) => {
         paste! {
+            #[derive(Debug, Clone)]
             pub struct $token {
                 $( pub $param: $t, )*
             }
             impl $token {
-                pub fn build($( $param: $t, )*) -> Box<$namespace> {
+                pub fn build($( $param: $t, )*) -> Rc<$namespace> {
                     let this = Self { $( $param , )* };
                     let warp = $namespace::[< $token >](this);
-                    Box::new(warp)
+                    Rc::new(warp)
                 }
                 // pub fn build($( $param: $t, )*) -> $namespace {
                 //     let this = Self { $( $param , )* };
@@ -38,27 +43,28 @@ macro_rules! impl_build {
 //     }
 // }
 
-pub type BoxExpr = Box<Expr>;
-pub type BoxStmt = Box<Stmt>;
+pub type RcExpr = Rc<Expr>;
+pub type RcStmt = Rc<Stmt>;
 
-impl_build!( Expr, Binary, [ left: BoxExpr, operator: Token, right: BoxExpr ] );
-impl_build!( Expr, Group, [ expression: BoxExpr ] );
-impl_build!( Expr, Unary, [ operator: Token, right: BoxExpr ] );
-impl_build!( Expr, Literal, [ value: LoxLiteral ] );
+impl_build!( Expr, Binary, [ left: RcExpr, operator: Token, right: RcExpr ] );
+impl_build!( Expr, Group, [ expression: RcExpr ] );
+impl_build!( Expr, Unary, [ operator: Token, right: RcExpr ] );
+impl_build!( Expr, Literal, [ value: TokenLiteral ] );
 impl_build!( Expr, Variable, [ name: Token ] );
-impl_build!( Expr, Assign, [ name: Token, value: BoxExpr ] );
-impl_build!( Expr, Logical, [ left: BoxExpr, operator: Token, right: BoxExpr ] );
-impl_build!( Expr, Call, [ callee: BoxExpr, paren: Token, arguments: Vec<BoxExpr> ] );
+impl_build!( Expr, Assign, [ name: Token, value: RcExpr ] );
+impl_build!( Expr, Logical, [ left: RcExpr, operator: Token, right: RcExpr ] );
+impl_build!( Expr, Call, [ callee: RcExpr, paren: Token, arguments: Vec<RcExpr> ] );
 
-impl_build!( Stmt, Expression, [ expression: BoxExpr ] );
-impl_build!( Stmt, Print, [ expression: BoxExpr ] );
-impl_build!( Stmt, Var, [ name: Token, initializer: Option<BoxExpr> ] );
-impl_build!( Stmt, Block, [ statements: Vec<BoxStmt> ] );
-impl_build!( Stmt, If, [ condition: BoxExpr, then_branch: BoxStmt, else_branch: Option<BoxStmt> ] );
-impl_build!( Stmt, While, [ condition: BoxExpr, body: BoxStmt ] );
-impl_build!( Stmt, Function, [ name: Token, params: Vec<Token>, body: BoxStmt ] );
-impl_build!( Stmt, Return, [ keyword: Token, value: Option<BoxExpr> ] );
+impl_build!( Stmt, Expression, [ expression: RcExpr ] );
+impl_build!( Stmt, Print, [ expression: RcExpr ] );
+impl_build!( Stmt, Var, [ name: Token, initializer: Option<RcExpr> ] );
+impl_build!( Stmt, Block, [ statements: Vec<RcStmt> ] );
+impl_build!( Stmt, If, [ condition: RcExpr, then_branch: RcStmt, else_branch: Option<RcStmt> ] );
+impl_build!( Stmt, While, [ condition: RcExpr, body: RcStmt ] );
+impl_build!( Stmt, Function, [ name: Token, params: Vec<Token>, body: RcStmt ] );
+impl_build!( Stmt, Return, [ keyword: Token, value: Option<RcExpr> ] );
 
+#[derive(Debug, Clone)]
 pub enum Expr {
     Binary(Binary),
     Group(Group),
@@ -70,6 +76,7 @@ pub enum Expr {
     Call(Call),
 }
 
+#[derive(Debug, Clone)]
 pub enum Stmt {
     Expression(Expression),
     Print(Print),
@@ -106,11 +113,11 @@ pub trait StmtVisitor<R>
 }
 
 pub trait ExprVisitable<R: ?Sized> {
-    fn accept(&self, visitor: &dyn ExprVisitor<R>) -> R;
+    fn accept(self, visitor: &dyn ExprVisitor<R>) -> R;
 }
 
 pub trait StmtVisitable<R: ?Sized> {
-    fn accept(&self, visitor: &dyn StmtVisitor<R>) -> R;
+    fn accept(self, visitor: &dyn StmtVisitor<R>) -> R;
 }
 
 #[macro_export]
@@ -123,11 +130,11 @@ macro_rules! impl_expr_visitable {
     } => {
         paste::paste! {
             impl ExprVisitable<$output> for Expr {
-                fn accept(&self, visitor: &dyn ExprVisitor<$output>) -> $output {
+                fn accept(self, visitor: &dyn ExprVisitor<$output>) -> $output {
                     match self {
                         $(
                             Expr::$op(value) => {
-                                visitor.[<visit_ $name>](value)
+                                visitor.[<visit_ $name>](&value)
                             }
                         )*
                     }
@@ -147,11 +154,11 @@ macro_rules! impl_stmt_visitable {
     } => {
         paste::paste! {
             impl StmtVisitable<$output> for Stmt {
-                fn accept(&self, visitor: &dyn StmtVisitor<$output>) -> $output {
+                fn accept(self, visitor: &dyn StmtVisitor<$output>) -> $output {
                     match self {
                         $(
                             Stmt::$op(value) => {
-                                visitor.[<visit_ $name>](value)
+                                visitor.[<visit_ $name>](&value)
                             }
                         )*
                     }
@@ -159,4 +166,50 @@ macro_rules! impl_stmt_visitable {
             }
         }
     };
+}
+
+
+pub enum LoxValue {
+    Number(f64),
+    String(String),
+    Bool(bool),
+    Nil,
+    Callable(Box<dyn for<'a> LoxCallable>),
+}
+
+impl PartialEq for LoxValue {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (LoxValue::Number(a), LoxValue::Number(b)) => a == b,
+            (LoxValue::String(a), LoxValue::String(b)) => a == b,
+            (LoxValue::Bool(a), LoxValue::Bool(b)) => a == b,
+            (LoxValue::Nil, LoxValue::Nil) => true,
+            _ => false,
+        }
+    }   
+}
+
+impl std::fmt::Display for LoxValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LoxValue::Number(n) => write!(f, "{}", n),
+            LoxValue::String(s) => write!(f, "{}", s),
+            LoxValue::Bool(b) => write!(f, "{}", b),
+            LoxValue::Nil => write!(f, "nil"),
+            // LoxValue::Literal(l) => write!(f, "{}", l),
+            LoxValue::Callable(c) => write!(f, "{}", c),
+        }
+    }
+}
+
+impl Debug for LoxValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Number(arg0) => f.debug_tuple("Number").field(arg0).finish(),
+            Self::String(arg0) => f.debug_tuple("String").field(arg0).finish(),
+            Self::Bool(arg0) => f.debug_tuple("Bool").field(arg0).finish(),
+            Self::Nil => write!(f, "Nil"),
+            Self::Callable(arg0) => f.debug_tuple("Callable").finish(),
+        }
+    }
 }

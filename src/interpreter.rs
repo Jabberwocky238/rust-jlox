@@ -3,12 +3,13 @@ use std::rc::Rc;
 
 use super::ast::*;
 
+use crate::ast;
 use crate::environment::Environment;
+
 use crate::function::builtin_function_clock;
 use crate::function::LoxFunction;
 
-use super::token::LoxLiteral;
-use super::token::LoxValue;
+use super::token::TokenLiteral;
 use super::token::Token;
 use super::token::TokenType;
 
@@ -39,7 +40,7 @@ use crate::impl_expr_visitable;
 use crate::impl_stmt_visitable;
 
 impl_expr_visitable! {
-    <LoxValue>,
+    <Rc<LoxValue>>,
     (Binary, binary),
     (Group, grouping),
     (Literal, literal),
@@ -69,122 +70,133 @@ pub struct Interpreter {
 
 impl Interpreter
 where
-    Self: ExprVisitor<LoxValue> + StmtVisitor<RuntimeResult>,
+    Self: ExprVisitor<Rc<LoxValue>> + StmtVisitor<RuntimeResult>,
 {
     pub fn new() -> Self {
         let mut env = Environment::new();
-        env.define("clock", builtin_function_clock());
+        env.define("clock", builtin_function_clock().into());
         Interpreter {
             environment: RefCell::new(env),
         }
     }
-    pub fn interpret(&self, stmts: &Vec<BoxStmt>) -> RuntimeResult {
-        for stmt in stmts.iter() {
-            self.execute(&*stmt)?;
+    pub fn interpret(&self, stmts: Vec<RcStmt>) -> RuntimeResult {
+        for stmt in stmts {
+            self.execute(stmt)?;
         }
         Ok(())
     }
-    fn execute(&self, stmt: &Stmt) -> RuntimeResult {
-        stmt.accept(self)
+    fn execute(&self, stmt: RcStmt) -> RuntimeResult {
+        <ast::Stmt as Clone>::clone(&stmt).accept(self)
     }
-    fn evaluate(&self, expr: &Expr) -> LoxValue {
-        return expr.accept(self);
+    fn evaluate(&self, expr: RcExpr) -> Rc<LoxValue> {
+        <ast::Expr as Clone>::clone(&expr).accept(self)
     }
 }
 
-impl ExprVisitor<LoxValue> for Interpreter {
-    fn visit_binary(&self, expr: &Binary) -> LoxValue {
-        let left = self.evaluate(&expr.left);
-        let right = self.evaluate(&expr.right);
+impl ExprVisitor<Rc<LoxValue>> for Interpreter {
+    fn visit_binary(&self, expr: &Binary) -> Rc<LoxValue> {
+        let binding = self.evaluate(expr.left.clone());
+        let left = binding.as_ref();
+        let binding = self.evaluate(expr.right.clone());
+        let right = binding.as_ref();
 
-        match expr.operator._type {
+        let ret = match expr.operator._type {
             TokenType::GREATER => {
                 let (left, right) = check_number_operands(&expr.operator, &left, &right).unwrap();
-                return LoxValue::Bool(left > right);
+                LoxValue::Bool(left > right)
             }
             TokenType::GREATEREQUAL => {
                 let (left, right) = check_number_operands(&expr.operator, &left, &right).unwrap();
-                return LoxValue::Bool(left >= right);
+                LoxValue::Bool(left >= right)
             }
             TokenType::LESS => {
                 let (left, right) = check_number_operands(&expr.operator, &left, &right).unwrap();
-                return LoxValue::Bool(left < right);
+                LoxValue::Bool(left < right)
             }
             TokenType::LESSEQUAL => {
                 let (left, right) = check_number_operands(&expr.operator, &left, &right).unwrap();
-                return LoxValue::Bool(left <= right);
+                LoxValue::Bool(left <= right)
             }
             TokenType::BANGEQUAL => {
-                return LoxValue::Bool(!is_equal(&left, &right));
+                LoxValue::Bool(!is_equal(&left, &right))
             }
             TokenType::EQUALEQUAL => {
-                return LoxValue::Bool(is_equal(&left, &right));
+                LoxValue::Bool(is_equal(&left, &right))
             }
             TokenType::MINUS => {
                 let (left, right) = check_number_operands(&expr.operator, &left, &right).unwrap();
-                return LoxValue::Number(left - right);
+                LoxValue::Number(left - right)
             }
             TokenType::PLUS => {
                 if let (LoxValue::Number(left), LoxValue::Number(right)) = (&left, &right)
                 {
-                    return LoxValue::Number(left + right);
+                    LoxValue::Number(left + right)
                 }
-                if let (LoxValue::String(left), LoxValue::String(right)) = (&left, &right)
+                else if let (LoxValue::String(left), LoxValue::String(right)) = (&left, &right)
                 {
-                    return LoxValue::String(left.to_string() + &right.to_string(),);
+                    LoxValue::String(left.to_string() + &right.to_string())
                 }
-                panic!("Operands must be two numbers or two strings.");
+                else {
+                    panic!("Operands must be two numbers or two strings.");
+                }
             }
             TokenType::SLASH => {
                 let (left, right) = check_number_operands(&expr.operator, &left, &right).unwrap();
-                return LoxValue::Number(left / right);
+                LoxValue::Number(left / right)
             }
             TokenType::STAR => {
                 let (left, right) = check_number_operands(&expr.operator, &left, &right).unwrap();
-                return LoxValue::Number(left * right);
+                LoxValue::Number(left * right)
             }
             _ => {
                 panic!("Unknown operator.");
             }
-        }
+        };
+        return ret.into();
         // Unreachable.
     }
-    fn visit_grouping(&self, expr: &Group) -> LoxValue {
-        return self.evaluate(&expr.expression);
+    fn visit_grouping(&self, expr: &Group) -> Rc<LoxValue> {
+        self.evaluate(expr.expression.clone())
     }
-    fn visit_literal(&self, expr: &Literal) -> LoxValue {
-        return LoxValue::Literal(expr.value.clone());
+    fn visit_literal(&self, expr: &Literal) -> Rc<LoxValue> {
+        let ret =  match expr.value.clone() {
+            TokenLiteral::Number(value) => LoxValue::Number(value),
+            TokenLiteral::String(value) => LoxValue::String(value),
+            TokenLiteral::Bool(value) => LoxValue::Bool(value),
+            TokenLiteral::Nil => LoxValue::Nil
+        };
+        return ret.into();
     }
-    fn visit_unary(&self, expr: &Unary) -> LoxValue {
-        let right = self.evaluate(&expr.right);
-        match expr.operator._type {
+    fn visit_unary(&self, expr: &Unary) -> Rc<LoxValue> {
+        let right = self.evaluate(expr.right.clone());
+        let ret = match expr.operator._type {
             TokenType::BANG => {
                 let result = !is_truthy(&right);
-                return LoxValue::Bool(result);
+                LoxValue::Bool(result)
             }
             TokenType::MINUS => {
                 let right = check_number_operand(&expr.operator, &right).unwrap();
-                return LoxValue::Number(-right);
+                LoxValue::Number(-right)
             }
             _ => {
                 panic!("Unknown operator.");
             }
-        }
-        // Unreachable
+        };
+        return ret.into();
     }
 
-    fn visit_variable(&self, expr: &Variable) -> LoxValue {
+    fn visit_variable(&self, expr: &Variable) -> Rc<LoxValue> {
         return self.environment.borrow().get(&expr.name.lexeme).unwrap();
     }
 
-    fn visit_assign(&self, stmt: &Assign) -> LoxValue {
-        let value = self.evaluate(&stmt.value);
+    fn visit_assign(&self, stmt: &Assign) -> Rc<LoxValue> {
+        let value = self.evaluate(stmt.value.clone());
         self.environment.borrow_mut().assign(&stmt.name.lexeme, value.clone()).unwrap();
-        return value;
+        return value.clone();
     }
 
-    fn visit_logical(&self, stmt: &Logical) -> LoxValue {
-        let left = self.evaluate(&stmt.left);
+    fn visit_logical(&self, stmt: &Logical) -> Rc<LoxValue> {
+        let left = self.evaluate(stmt.left.clone());
         if stmt.operator._type == TokenType::OR {
             if is_truthy(&left) {
                 return left;
@@ -194,17 +206,18 @@ impl ExprVisitor<LoxValue> for Interpreter {
                 return left;
             }
         }
-        return self.evaluate(&stmt.right);
+        return self.evaluate(stmt.right.clone());
     }
 
-    fn visit_call(&self, stmt: &Call) -> LoxValue {
-        let callee = self.evaluate(&stmt.callee);
+    fn visit_call(&self, stmt: &Call) -> Rc<LoxValue> {
+        let callee = self.evaluate(stmt.callee.clone());
         let mut arguments = Vec::new();
-        for argument in stmt.arguments.iter() {
-            arguments.push(self.evaluate(argument));
+        for argument in stmt.arguments.clone() {
+            let arg = self.evaluate(argument);
+            arguments.push(arg);
         }
-        if let LoxValue::Callable(callee) = callee {
-            return callee.call(self, arguments);
+        if let LoxValue::Callable(callee) = callee.as_ref() {
+            return callee.call(self, arguments).into();
         }
         panic!("Can only call functions and classes.");
     }
@@ -212,31 +225,31 @@ impl ExprVisitor<LoxValue> for Interpreter {
 
 impl StmtVisitor<RuntimeResult> for Interpreter {
     fn visit_expression(&self, stmt: &Expression) -> RuntimeResult {
-        let _ = self.evaluate(&stmt.expression);
+        let _ = self.evaluate(stmt.expression.clone());
         Ok(())
     }
     fn visit_print(&self, stmt: &Print) -> RuntimeResult {
-        let value = self.evaluate(&stmt.expression);
+        let value = self.evaluate(stmt.expression.clone());
         println!("{}", value);
         Ok(())
     }
     fn visit_var(&self, stmt: &Var) -> RuntimeResult {
-        let value = if let Some(ref initializer) = stmt.initializer {
-            self.evaluate(initializer)
+        let value = if let Some(initializer) = &stmt.initializer {
+            self.evaluate(initializer.clone())
         } else {
-            LoxValue::Nil
+            Rc::new(LoxValue::Nil)
         };
         self.environment
             .borrow_mut()
-            .define(&stmt.name.lexeme, value);
+            .define(&stmt.name.lexeme, value.into());
         Ok(())
     }
 
     fn visit_block(&self, stmt: &Block) -> RuntimeResult {
         self.environment.borrow_mut().enter_scope(false);
 
-        for statement in stmt.statements.iter() {
-            self.execute(statement)?;
+        for statement in &stmt.statements {
+            self.execute(statement.clone())?;
         }
 
         self.environment.borrow_mut().exit_scope();
@@ -244,33 +257,33 @@ impl StmtVisitor<RuntimeResult> for Interpreter {
     }
 
     fn visit_if(&self, stmt: &If) -> RuntimeResult {
-        if is_truthy(&self.evaluate(&stmt.condition)) {
-            self.execute(&stmt.then_branch)?;
-        } else if let Some(ref else_branch) = stmt.else_branch {
-            self.execute(else_branch)?;
+        if is_truthy(&self.evaluate(stmt.condition.clone())) {
+            self.execute(stmt.then_branch.clone())?;
+        } else if let Some(else_branch) = &stmt.else_branch {
+            self.execute(else_branch.clone())?;
         }
         Ok(())
     }
 
     fn visit_while(&self, stmt: &While) -> RuntimeResult {
-        while is_truthy(&self.evaluate(&stmt.condition)) {
-            self.execute(&stmt.body)?;
+        while is_truthy(&self.evaluate(stmt.condition.clone())) {
+            self.execute(stmt.body.clone())?;
         }
         Ok(())
     }
 
     fn visit_function(&self, stmt: &Function) -> RuntimeResult {
-        let function = LoxFunction::new(stmt);
-        let function = LoxValue::Callable(Rc::new(function));
-        self.environment.borrow_mut().define(&stmt.name.lexeme, function);
+        let function_name = stmt.name.lexeme.clone();
+        let function = LoxValue::Callable(Box::new(LoxFunction::new(stmt.clone())));
+        self.environment.borrow_mut().define(&function_name, function.into());
         Ok(())
     }
 
     fn visit_return(&self, stmt: &Return) -> RuntimeResult {
-        let ret = if let Some(ref value) = stmt.value {
-            self.evaluate(value)
+        let ret = if let Some(value) = &stmt.value {
+            self.evaluate(value.clone())
         } else {
-            LoxValue::Nil
+            Rc::new(LoxValue::Nil)
         };
         Err(Box::new(RuntimeReturn::new(ret)))
     }
