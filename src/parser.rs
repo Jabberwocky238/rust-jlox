@@ -272,10 +272,10 @@ impl Parser {
     }
 
     fn factor(&self) -> ParseResult<RcExpr> {
-        let mut expr = self.unary().unwrap();
+        let mut expr = self.unary()?;
         while self._match(&[TokenType::SLASH, TokenType::STAR]) {
             let operator = self._previous().unwrap();
-            let right = self.unary().unwrap();
+            let right = self.unary()?;
             expr = Binary::build(expr, operator.clone(), right);
         }
         return Ok(expr);
@@ -284,17 +284,17 @@ impl Parser {
     fn unary(&self) -> ParseResult<RcExpr> {
         if self._match(&[TokenType::BANG, TokenType::MINUS]) {
             let operator = self._previous().unwrap();
-            let right = self.unary().unwrap();
+            let right = self.unary()?;
             return Ok(Unary::build(operator.clone(), right));
         }
         return self.call();
     }
 
     fn call(&self) -> ParseResult<RcExpr> {
-        let mut expr = self.primary().unwrap();
+        let mut expr = self.primary()?;
         loop {
             if self._match(&[TokenType::LEFTPAREN]) {
-                expr = self.finish_call(expr).unwrap();
+                expr = self.finish_call(expr)?;
             } else {
                 break;
             }

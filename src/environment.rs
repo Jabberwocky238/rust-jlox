@@ -21,6 +21,7 @@ impl Environment {
     }
     
     pub fn enter_scope(&mut self, is_global: bool) {
+        // dbg!("enter_scope");
         if is_global {
             self.ancestor.push(0);
         } else {
@@ -32,8 +33,9 @@ impl Environment {
     }
 
     pub fn exit_scope(&mut self) {
+        // dbg!("exit_scope");
         self.curdepth -= 1;
-        self.curregis = self.ancestor[self.registry.len() - 1];
+        self.curregis = self.ancestor[self.curregis];
     }
 
     pub fn define(&mut self, name: &str, value: Rc<LoxValue>) {
@@ -45,7 +47,7 @@ impl Environment {
         while regist_index != usize::MAX {
             // dbg!(&self.registry[regist_index]);
             // dbg!(&self.ancestor[regist_index]);
-            dbg!(&regist_index);
+            // dbg!(&regist_index);
             if let Some(value) = self.registry[regist_index].get(name) {
                 return Ok(value.clone());
             }

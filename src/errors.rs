@@ -1,7 +1,7 @@
 use crate::{ast::LoxValue, token::Token};
-use std::{fmt::{Debug, Display, Formatter, Result}, rc::Rc};
+use std::{any::Any, fmt::{Debug, Display, Formatter, Result}, rc::Rc};
 
-pub trait RuntimeErrorT: Display{}
+pub trait RuntimeErrorT: Display {}
 
 // -------------------------------------------------------
 pub struct RuntimeError(pub String);
@@ -13,6 +13,7 @@ impl Display for RuntimeError {
         write!(f, "{}", self.0)
     }
 }
+
 
 impl Debug for RuntimeError {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {

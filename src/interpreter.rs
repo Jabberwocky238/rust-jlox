@@ -1,4 +1,6 @@
+use std::any::Any;
 use std::cell::RefCell;
+use std::mem;
 use std::rc::Rc;
 
 use super::ast::*;
@@ -51,7 +53,7 @@ impl_expr_visitable! {
     (Call, call),
 }
 
-type RuntimeResult = Result<(), Box<dyn RuntimeErrorT>>;
+type RuntimeResult = Result<(), Box<dyn Any>>;
 impl_stmt_visitable! {
     <RuntimeResult>,
     (Expression, expression),
@@ -212,6 +214,7 @@ impl ExprVisitor<Rc<LoxValue>> for Interpreter {
     fn visit_call(&self, stmt: &Call) -> Rc<LoxValue> {
         let callee = self.evaluate(stmt.callee.clone());
         let mut arguments = Vec::new();
+
         for argument in stmt.arguments.clone() {
             let arg = self.evaluate(argument);
             arguments.push(arg);

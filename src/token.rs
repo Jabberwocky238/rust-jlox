@@ -2,11 +2,8 @@ use once_cell::sync::Lazy;
 use std::cmp::Eq;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::rc::Rc;
 use std::string::String;
 use std::sync::Mutex;
-
-use crate::function::LoxCallable;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum TokenType {

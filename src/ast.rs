@@ -177,6 +177,12 @@ pub enum LoxValue {
     Callable(Box<dyn for<'a> LoxCallable>),
 }
 
+impl Default for LoxValue {
+    fn default() -> Self {
+        LoxValue::Nil
+    }
+}
+
 impl PartialEq for LoxValue {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -209,7 +215,7 @@ impl Debug for LoxValue {
             Self::String(arg0) => f.debug_tuple("String").field(arg0).finish(),
             Self::Bool(arg0) => f.debug_tuple("Bool").field(arg0).finish(),
             Self::Nil => write!(f, "Nil"),
-            Self::Callable(arg0) => f.debug_tuple("Callable").finish(),
+            Self::Callable(_arg0) => f.debug_tuple("Callable").finish(),
         }
     }
 }
