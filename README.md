@@ -1,4 +1,4 @@
-# jlox implementation in rust
+# lox rust
 
 **chapter 10: Functions has been finished**
 

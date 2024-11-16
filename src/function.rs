@@ -1,4 +1,3 @@
-use std::any::{Any, TypeId};
 use std::rc::Rc;
 
 use crate::ast::{self, Function, LoxValue, StmtVisitable};
