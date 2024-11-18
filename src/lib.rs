@@ -7,11 +7,13 @@ mod ast;
 mod environment;
 mod token;
 mod function;
+mod scope_resolver;
 
 use interpreter::Interpreter;
 use parser::Parser;
 use astprinter::AstPrinter;
 use scanner::Scanner;
+use scope_resolver::ScopeResolver;
 
 pub struct Lox {
     interpreter: Interpreter,
@@ -71,8 +73,10 @@ impl Lox {
         // for stmt in stmts.iter() {
         //     println!("{}", ast_printer.print_stmt(stmt.clone()));
         // }
+        let resolver = ScopeResolver::new(&mut self.interpreter);
+        resolver.resolve(&stmts);
         
-        match self.interpreter.interpret(stmts) {
+        match self.interpreter.interpret(&stmts) {
             Ok(_) => {},
             Err(e) => {
                 self.had_error = true;

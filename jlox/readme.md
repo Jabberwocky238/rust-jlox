@@ -14,6 +14,8 @@ mvn exec:java -Dexec.mainClass="com.jlox.Lox" -Dexec.args="../samples/for_if.lox
 after chapter 10
 mvn exec:java -Dexec.mainClass="com.jlox.Lox" -Dexec.args="../samples/func.lox"
 mvn exec:java -Dexec.mainClass="com.jlox.Lox" -Dexec.args="../samples/closure.lox"
+after chapter 11
+mvn exec:java -Dexec.mainClass="com.jlox.Lox" -Dexec.args="../samples/binding.lox"
 ```
 
 

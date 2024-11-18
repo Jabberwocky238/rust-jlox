@@ -2,36 +2,15 @@ package com.jlox;
 
 import com.utils.Expr;
 import com.utils.Expr.Assign;
+import com.utils.Expr.Binary;
+import com.utils.Expr.Call;
+import com.utils.Expr.Grouping;
+import com.utils.Expr.Literal;
 import com.utils.Expr.Logical;
+import com.utils.Expr.Unary;
 import com.utils.Expr.Variable;
 
 class AstPrinter implements Expr.Visitor<String> {
-  String print(Expr expr) {
-    return expr.accept(this);
-  }
-
-  @Override
-  public String visitBinaryExpr(Expr.Binary expr) {
-    return parenthesize(expr.operator.lexeme,
-        expr.left, expr.right);
-  }
-
-  @Override
-  public String visitGroupingExpr(Expr.Grouping expr) {
-    return parenthesize("group", expr.expression);
-  }
-
-  @Override
-  public String visitLiteralExpr(Expr.Literal expr) {
-    if (expr.value == null)
-      return "nil";
-    return expr.value.toString();
-  }
-
-  @Override
-  public String visitUnaryExpr(Expr.Unary expr) {
-    return parenthesize(expr.operator.lexeme, expr.right);
-  }
 
   private String parenthesize(String name, Expr... exprs) {
     StringBuilder builder = new StringBuilder();
@@ -58,6 +37,33 @@ class AstPrinter implements Expr.Visitor<String> {
     System.out.println(new AstPrinter().print(expression));
   }
 
+  String print(Expr expr) {
+    return expr.accept(this);
+  }
+
+  @Override
+  public String visitBinaryExpr(Binary expr) {
+    return parenthesize(expr.operator.lexeme,
+        expr.left, expr.right);
+  }
+
+  @Override
+  public String visitGroupingExpr(Grouping expr) {
+    return parenthesize("group", expr.expression);
+  }
+
+  @Override
+  public String visitLiteralExpr(Literal expr) {
+    if (expr.value == null)
+      return "nil";
+    return expr.value.toString();
+  }
+
+  @Override
+  public String visitUnaryExpr(Unary expr) {
+    return parenthesize(expr.operator.lexeme, expr.right);
+  }
+
   @Override
   public String visitAssignExpr(Assign expr) {
     // TODO Auto-generated method stub
@@ -74,5 +80,11 @@ class AstPrinter implements Expr.Visitor<String> {
   public String visitLogicalExpr(Logical expr) {
     // TODO Auto-generated method stub
     throw new UnsupportedOperationException("Unimplemented method 'visitLogicalExpr'");
+  }
+
+  @Override
+  public String visitCallExpr(Call expr) {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'visitCallExpr'");
   }
 }

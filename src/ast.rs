@@ -90,9 +90,9 @@ pub trait ExprVisitor<R>
     fn visit_literal(&self, expr: &Literal) -> R;
     fn visit_unary(&self, expr: &Unary) -> R;
     fn visit_variable(&self, expr: &Variable) -> R;
-    fn visit_assign(&self, stmt: &Assign) -> R;
-    fn visit_logical(&self, stmt: &Logical) -> R;
-    fn visit_call(&self, stmt: &Call) -> R;
+    fn visit_assign(&self, expr: &Assign) -> R;
+    fn visit_logical(&self, expr: &Logical) -> R;
+    fn visit_call(&self, expr: &Call) -> R;
 }
 
 pub trait StmtVisitor<R>

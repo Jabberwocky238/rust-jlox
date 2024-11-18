@@ -19,7 +19,7 @@ impl Environment {
         };
         return body;
     }
-    
+
     pub fn enter_scope(&mut self, is_global: bool) {
         // dbg!("enter_scope");
         if is_global {
@@ -53,7 +53,21 @@ impl Environment {
             }
             regist_index = self.ancestor[regist_index];
         }
-        Err(RuntimeError("Undefined variable '".to_string() + name + "'."))
+        Err(RuntimeError(
+            "Undefined variable '".to_string() + name + "'.",
+        ))
+    }
+    pub fn get_at(&self, distance: usize, name: &str) -> Result<Rc<LoxValue>, RuntimeError> {
+        let mut regist_index = self.curregis;
+        for _ in 0..distance {
+            regist_index = self.ancestor[regist_index];
+        }
+        if let Some(value) = self.registry[regist_index].get(name) {
+            return Ok(value.clone());
+        }
+        Err(RuntimeError(
+            "Undefined variable '".to_string() + name + "'.",
+        ))
     }
 
     pub fn assign(&mut self, name: &str, value: Rc<LoxValue>) -> Result<(), RuntimeError> {
@@ -64,6 +78,24 @@ impl Environment {
                 return Ok(());
             }
             regist_index = self.ancestor[regist_index];
+        }
+        Err(RuntimeError(
+            name.to_string() + "Undefined variable '" + name + "'.",
+        ))
+    }
+    pub fn assign_at(
+        &mut self,
+        distance: usize,
+        name: &str,
+        value: Rc<LoxValue>,
+    ) -> Result<(), RuntimeError> {
+        let mut regist_index = self.curregis;
+        for _ in 0..distance {
+            regist_index = self.ancestor[regist_index];
+        }
+        if self.registry[regist_index].contains_key(name) {
+            self.registry[regist_index].insert(name.to_string(), value);
+            return Ok(());
         }
         Err(RuntimeError(
             name.to_string() + "Undefined variable '" + name + "'.",
