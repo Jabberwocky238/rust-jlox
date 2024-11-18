@@ -45,17 +45,12 @@ impl Environment {
     pub fn get(&self, name: &str) -> Result<Rc<LoxValue>, RuntimeError> {
         let mut regist_index = self.curregis;
         while regist_index != usize::MAX {
-            // dbg!(&self.registry[regist_index]);
-            // dbg!(&self.ancestor[regist_index]);
-            // dbg!(&regist_index);
             if let Some(value) = self.registry[regist_index].get(name) {
                 return Ok(value.clone());
             }
             regist_index = self.ancestor[regist_index];
         }
-        Err(RuntimeError(
-            "Undefined variable '".to_string() + name + "'.",
-        ))
+        Err(RuntimeError("Undefined variable '".to_string() + name + "'."))
     }
     pub fn get_at(&self, distance: usize, name: &str) -> Result<Rc<LoxValue>, RuntimeError> {
         let mut regist_index = self.curregis;

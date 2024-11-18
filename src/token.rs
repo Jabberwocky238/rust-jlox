@@ -2,6 +2,7 @@ use once_cell::sync::Lazy;
 use std::cmp::Eq;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::hash::Hash;
 use std::string::String;
 use std::sync::Mutex;
 
@@ -102,6 +103,21 @@ pub enum TokenLiteral {
     Nil,
 }
 
+impl Eq for TokenLiteral {
+    
+}
+
+impl Hash for TokenLiteral {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            TokenLiteral::Number(n) => n.to_bits().hash(state),
+            TokenLiteral::String(s) => s.hash(state),
+            TokenLiteral::Bool(b) => b.hash(state),
+            TokenLiteral::Nil => 0u8.hash(state),
+        }
+    }
+}
+
 impl std::fmt::Display for TokenLiteral {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -113,7 +129,7 @@ impl std::fmt::Display for TokenLiteral {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Token {
     pub _type: TokenType,
     pub lexeme: String,

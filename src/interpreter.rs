@@ -1,7 +1,7 @@
 use std::any::Any;
+use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::iter::FlatMap;
 use std::rc::Rc;
 
 use super::ast::*;
@@ -61,7 +61,7 @@ where
         env.define("clock", builtin_function_clock().into());
         Interpreter {
             environment: RefCell::new(env),
-            locals: RefCell::new(HashMap::new()),
+            locals: HashMap::new().into(),
         }
     }
     pub fn interpret(&self, stmts: &Vec<RcStmt>) -> RuntimeResult {
@@ -70,17 +70,13 @@ where
         }
         Ok(())
     }
-    pub fn resolve(&self, expr: RcExpr, depth: usize) {
+    pub fn resolve(&mut self, expr: RcExpr, depth: usize) {
         self.locals.borrow_mut().insert(expr, depth);
     }
     fn lookup_variable(&self, name: &Token, expr: &RcExpr) -> Rc<LoxValue> {
-        let distance = self.locals.borrow().get(expr);
-        if let Some(distance) = distance {
-            return self
-                .environment
-                .borrow()
-                .get_at(*distance, &name.lexeme)
-                .unwrap();
+        let distance = self.locals.borrow();
+        if let Some(distance) = distance.get(expr) {
+            return self.environment.borrow().get_at(*distance, &name.lexeme).unwrap();
         } else {
             return self.environment.borrow().get(&name.lexeme).unwrap();
         }
@@ -180,24 +176,19 @@ impl ExprVisitor<Rc<LoxValue>> for Interpreter {
     fn visit_variable(&self, expr: &Variable) -> Rc<LoxValue> {
         // 11.4
         // return self.environment.borrow().get(&expr.name.lexeme).unwrap();
-        return self.lookup_variable(&expr.name, expr);
+        let rcexpr = Rc::new(ast::Expr::Variable(expr.clone()));
+        return self.lookup_variable(&expr.name, &rcexpr);
     }
 
-    fn visit_assign(&self, stmt: &Assign) -> Rc<LoxValue> {
-        let value = self.evaluate(stmt.value.clone());
+    fn visit_assign(&self, expr: &Assign) -> Rc<LoxValue> {
+        let value = self.evaluate(expr.value.clone());
         // 11.4
         // self.environment.borrow_mut().assign(&stmt.name.lexeme, value.clone()).unwrap();
-        let distance = self.locals.borrow().get(stmt);
-        if let Some(distance) = distance {
-            self.environment
-                .borrow_mut()
-                .assign_at(*distance, &stmt.name.lexeme, value.clone())
-                .unwrap();
+        let rcexpr = Rc::new(ast::Expr::Assign(expr.clone()));
+        if let Some(distance) = self.locals.borrow().get(&rcexpr) {
+            self.environment.borrow_mut().assign_at(*distance, &expr.name.lexeme, value.clone()).unwrap();
         } else {
-            self.environment
-                .borrow_mut()
-                .assign(&stmt.name.lexeme, value.clone())
-                .unwrap();
+            self.environment.borrow_mut().assign(&expr.name.lexeme, value.clone()).unwrap();
         }
         return value.clone();
     }
@@ -233,7 +224,7 @@ impl ExprVisitor<Rc<LoxValue>> for Interpreter {
 
 impl StmtVisitor<RuntimeResult> for Interpreter {
     fn visit_expression(&self, stmt: &Expression) -> RuntimeResult {
-        let _ = self.evaluate(stmt.expression.clone());
+        self.evaluate(stmt.expression.clone());
         Ok(())
     }
     fn visit_print(&self, stmt: &Print) -> RuntimeResult {
@@ -255,11 +246,9 @@ impl StmtVisitor<RuntimeResult> for Interpreter {
 
     fn visit_block(&self, stmt: &Block) -> RuntimeResult {
         self.environment.borrow_mut().enter_scope(false);
-
         for statement in &stmt.statements {
             self.execute(statement.clone())?;
         }
-
         self.environment.borrow_mut().exit_scope();
         Ok(())
     }
@@ -341,17 +330,3 @@ fn is_equal(a: &LoxValue, b: &LoxValue) -> bool {
     }
     return a == b;
 }
-
-// fn stringify(object: LiteralType) -> String {
-//     if object == LiteralType::Nil {
-//         return "nil".to_owned();
-//     }
-//     if let LiteralType::Number(value) = object {
-//         let mut text = value.to_string();
-//         if text.ends_with(".0") {
-//             text = text[0..text.len() - 2].to_string();
-//         }
-//         return text;
-//     }
-//     return object.to_string();
-// }

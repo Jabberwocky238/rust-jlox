@@ -9,7 +9,7 @@ use paste::paste;
 macro_rules! impl_build {
     ($namespace:ty, $token:ty, [ $($param:ident: $t:ty), * ] ) => {
         paste! {
-            #[derive(Debug, Clone)]
+            #[derive(Debug, Clone, Hash, Eq, PartialEq)]
             pub struct $token {
                 $( pub $param: $t, )*
             }
@@ -59,7 +59,7 @@ impl_build!( Stmt, While, [ condition: RcExpr, body: RcStmt ] );
 impl_build!( Stmt, Function, [ name: Token, params: Vec<Token>, body: RcStmt ] );
 impl_build!( Stmt, Return, [ keyword: Token, value: Option<RcExpr> ] );
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum Expr {
     Binary(Binary),
     Group(Group),
@@ -71,7 +71,8 @@ pub enum Expr {
     Call(Call),
 }
 
-#[derive(Debug, Clone)]
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum Stmt {
     Expression(Expression),
     Print(Print),

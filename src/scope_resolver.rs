@@ -1,10 +1,11 @@
-use std::{any::Any, cell::RefCell, collections::HashMap, rc::Rc};
+use std::cell::Cell;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::ast;
 use crate::ast::*;
 use crate::interpreter::Interpreter;
 use crate::token::Token;
-use ast::{ExprVisitable, ExprVisitor, LoxValue, RcExpr, RcStmt, StmtVisitable, StmtVisitor};
+use ast::{ExprVisitable, ExprVisitor, RcExpr, RcStmt, StmtVisitable, StmtVisitor};
 
 use crate::impl_expr_visitable;
 use crate::impl_stmt_visitable;
@@ -34,7 +35,7 @@ impl_stmt_visitable! {
 
 pub struct ScopeResolver<'a> {
     pub scopes: RefCell<Vec<HashMap<String, bool>>>,
-    pub interpreter: &'a mut Interpreter,
+    interpreter: RefCell<&'a mut Interpreter>,
 }
 
 impl<'a> ScopeResolver<'a>
@@ -44,7 +45,7 @@ where
     pub fn new(interpreter: &'a mut Interpreter) -> Self {
         Self {
             scopes: RefCell::new(Vec::new()),
-            interpreter,
+            interpreter: interpreter.into(),
         }
     }
     pub fn resolve(&self, statements: &Vec<RcStmt>) {
@@ -62,7 +63,7 @@ where
         let borrowed_scope = self.scopes.borrow();
         for (i, scope) in borrowed_scope.iter().enumerate().rev() {
             if scope.contains_key(&name.lexeme) {
-                self.interpreter.resolve(expr, borrowed_scope.len() - 1 - i);
+                self.interpreter.borrow_mut().resolve(expr, borrowed_scope.len() - 1 - i);
                 return;
             }
         }
@@ -125,14 +126,12 @@ impl ExprVisitor<()> for ScopeResolver<'_> {
                 }
             }
         }
-        let rcexpr = Rc::new(ast::Expr::Variable(expr.clone()));
-        self.resolve_local(rcexpr, expr.name.clone());
+        self.resolve_local(Rc::new(ast::Expr::Variable(expr.clone())), expr.name.clone());
     }
 
     fn visit_assign(&self, expr: &ast::Assign) {
         self.resolve_expr(expr.value.clone());
-        let rcexpr = Rc::new(ast::Expr::Assign(expr.clone()));
-        self.resolve_local(rcexpr, expr.name.clone());
+        self.resolve_local(Rc::new(ast::Expr::Assign(expr.clone())), expr.name.clone());
     }
 
     fn visit_logical(&self, expr: &ast::Logical) {
