@@ -1,14 +1,8 @@
-# lox rust
+# lox implementation
 
-**chapter 10: Functions has been finished**
-
-## run
-```bash
-cargo test
-
-cargo run -- samples/closure.lox
-cargo run -- samples/binding.lox
-```
++ jlox
++ clox
++ rlox: rust lox
 
 ## thanks
 
